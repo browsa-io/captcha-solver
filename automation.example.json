@@ -1,0 +1,10 @@
+{
+  "apiKey": "agt_live_your_key_here",
+  "apiBase": "https://captcha.browsa.io",
+  "enabled": true,
+  "auto": true,
+  "types": { "recaptcha": true, "text": true, "geetest": true, "awswaf": true },
+  "skip": [],
+  "trustedInput": false,
+  "submitText": false
+}

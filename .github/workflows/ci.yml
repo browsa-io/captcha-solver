@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:firefox
+      - name: Lint the Firefox build
+        run: npx --yes web-ext@10.8.0 lint --source-dir dist/firefox
+
+  reproducible:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the store packages
+        run: |
+          npm run package
+          npm run package:firefox
+      - name: sha256 of the packages and of every file in them
+        run: |
+          sha256sum dist/*.zip
+          node scripts/hashes.mjs dist/chrome
+          node scripts/hashes.mjs dist/firefox
+      - name: Compare with the Chrome Web Store package (when the store serves this version)
+        continue-on-error: true
+        run: |
+          curl -sSL -o store.crx 'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=131.0&acceptformat=crx2,crx3&x=id%3Dplmcdhefocmbmnoccgoghbnidepemhdk%26uc'
+          store=$(unzip -p store.crx manifest.json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')
+          here=$(node -p 'require("./package.json").version')
+          if [ "$store" != "$here" ]; then
+            echo "The store serves $store; this commit is $here. Nothing to compare."
+            exit 0
+          fi
+          node scripts/hashes.mjs dist/chrome --against=store.crx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-packages
+          path: dist/*.zip

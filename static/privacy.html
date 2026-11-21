@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Privacy</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0 auto; max-width: 620px; padding: 32px 20px; background: oklch(0.138 0.012 160); color: oklch(0.84 0.012 155);
+    font: 15px/1.6 "Helvetica Neue", Arial, sans-serif; }
+  h1 { color: oklch(0.955 0.008 155); font-size: 22px; }
+  h2 { color: oklch(0.955 0.008 155); font-size: 16px; margin-top: 24px; }
+  code { color: oklch(0.83 0.14 152); }
+</style>
+</head>
+<body>
+<h1>Privacy</h1>
+<p>The extension talks to one service, Browsa's captcha API, and only in these cases.</p>
+<h2>When it sends something</h2>
+<ul>
+  <li>Solving a captcha. reCAPTCHA, hCaptcha and DataDome start by themselves only in the provider's own frame
+    (checked by its address); GeeTest and AWS WAF only when the page loaded the provider's own scripts; picture-text
+    captchas only on sites where you said yes, otherwise when you press Solve.</li>
+  <li>At most 3 automatic solves per page and 10 per site per hour. A picture already solved is never sent again.</li>
+  <li>Checking your key, when you open the panel or change the key: the key only.</li>
+</ul>
+<h2>What a solve sends</h2>
+<ul>
+  <li>the captcha's own picture(s) and its question (for example "traffic lights"). When a picture can only be read
+    from the screen (hCaptcha, or a picture a page script cannot read), a crop of just the captcha is sent; the rest
+    of the screenshot never leaves the browser;</li>
+  <li>the host name of the site the captcha is on (for example <code>example.com</code>), never the full address;</li>
+  <li>your Browsa API key, so the solve is counted for your workspace.</li>
+</ul>
+<p>What it never sends: cookies, the page's HTML or text, form contents, passwords, your browsing history, or anything
+from pages without a supported captcha. Cloudflare's checks, Altcha and Press &amp; hold are solved in the page:
+nothing is sent for them.</p>
+<p>What it fetches: GeeTest's own puzzle pictures, from GeeTest's servers, the same files the page already loaded.</p>
+<h2>What is kept</h2>
+<p>Browsa does not store captcha pictures: a solve keeps its type, the site's host, sizes, timing and model cost, and
+its answer is deleted after 10 minutes. In your browser: settings, your key and its last check, the sites you allowed
+for picture text, and the last 50 solves (time, site, type, result, reason); until the browser closes, the solve
+counters and, for 30 minutes, the answers of pictures already solved.</p>
+<p>"Trusted input" (off unless you turn it on) lets the extension send pointer and key events through Chrome's
+debugger interface; Chrome shows a bar while it is attached. Nothing else is read through it.</p>
+<p>Questions: support@browsa.io.</p>
+</body>
+</html>
