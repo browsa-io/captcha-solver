@@ -26,6 +26,36 @@ jobs:
       - name: Lint the Firefox build
         run: npx --yes web-ext@10.8.0 lint --source-dir dist/firefox
 
+  # The built packages in real browsers, on local fixture pages, against a local stand-in for the API. Nothing in
+  # this job reaches the internet from the browser: its only way out is the suite's recording proxy.
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Chrome for Testing
+        if: matrix.browser == 'chrome'
+        run: npx playwright-core install --with-deps chromium
+      - name: Firefox
+        if: matrix.browser == 'firefox'
+        uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: latest
+      - run: npm run build
+      - run: npm run build:firefox
+      - name: End-to-end suite
+        run: xvfb-run -a node --test test/e2e/e2e.test.mjs
+        env:
+          BROWSER: ${{ matrix.browser }}
+
   reproducible:
     runs-on: ubuntu-latest
     steps:

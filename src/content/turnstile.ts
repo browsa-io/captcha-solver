@@ -79,7 +79,7 @@ export async function runTurnstile(ctx: Ctx) {
   ctx.onManual('turnstile', () => !!checkbox(), async () => { await refresh(); return go('button'); });
   for (;;) {
     await sleep(1.0);
-    if (busy || clicks >= 3 || !ctx.cfg.auto) continue;
+    if (busy || clicks >= 3 || !ctx.cfg.auto || !ctx.cfg.autoTypes[kind]) continue;
     if (checkbox()) await refresh();
     if (ctx.skipAuto(kind)) continue;
     if (performance.now() - t0 < 2500) continue;     // Cloudflare decides most visits by itself first

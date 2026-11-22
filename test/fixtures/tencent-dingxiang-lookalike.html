@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Captcha comparison: Tencent and Dingxiang</title>
+<link rel="stylesheet" href="/cdn/tencent-captcha.css">
+<script src="/js/turing.captcha.qcloud.com.js"></script>
+<script src="/cdn/dingxiang-inc.com/captcha.js"></script>
+</head>
+<body>
+<article>
+  <h1>How Tencent's captcha (腾讯验证码) and Dingxiang (顶象) compare</h1>
+  <p>Tencent Cloud's TCaptcha shows a slide puzzle ("拖动下方滑块完成拼图") or asks you to click characters in order.
+     Dingxiang's rotate puzzle ("请拖动左侧滑块旋转至正确位置") turns a disc.</p>
+  <button id="captcha_click">Try the slide</button>
+  <button id="image_click">Try the click</button>
+</article>
+<!-- a copy of the widgets' markup drawn by the page itself, with no provider script -->
+<div id="tcaptcha_transform_dy" class="tencent-captcha__transform" style="display: block; width: 360px">
+  <div id="tCaptchaDyMainWrap" class="tencent-captcha-dy__warp tencent-captcha-dy__slider-type-wrap">
+    <div class="tencent-captcha-dy__verify-bg-img" style="width: 330px; height: 235px; background-image: url('/bg.png')"></div>
+    <div class="tencent-captcha-dy__fg-item" style="position: absolute; left: 20px; top: 100px; width: 60px; height: 60px; background-image: url('/bg.png?img_index=0')"></div>
+    <div class="tencent-captcha-dy__slider-block"></div>
+  </div>
+</div>
+<div class="dx_captcha_rotate_wrapper">
+  <div class="dx_captcha_rotate_main-box" style="display: block">
+    <div class="dx_captcha_rotate_sub-slider" style="width: 132px; height: 132px"><img src="/disc.webp" alt=""></div>
+    <div class="dx_captcha_rotate_bg"><img src="/bg.webp" alt=""></div>
+    <div class="dx_captcha_rotate_bar"><div class="dx_captcha_rotate_slider"></div></div>
+  </div>
+</div>
+</body>
+</html>

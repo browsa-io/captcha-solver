@@ -12,9 +12,11 @@ service it calls, Browsa's captcha API, is not part of it.
 
 - **Chrome** (also Brave, Edge and Opera):
   [Chrome Web Store](https://chromewebstore.google.com/detail/browsa-captcha-solver/plmcdhefocmbmnoccgoghbnidepemhdk)
-- **Firefox**: pending Mozilla review. It will be at
+- **Firefox** (140 or later): pending Mozilla review. It will be at
   [addons.mozilla.org/firefox/addon/browsa-captcha-solver](https://addons.mozilla.org/firefox/addon/browsa-captcha-solver/)
   once approved. Until then you can [build it from source](#build-from-source).
+
+The stores may still serve an earlier version than this source; `package.json` has the version built here.
 
 ## Get a key
 
@@ -22,39 +24,67 @@ service it calls, Browsa's captcha API, is not part of it.
 2. In the dashboard, open **API keys** and create a key.
 3. Click the extension's icon, paste the key, **Save**.
 
-Each solve uses Browsa credits. Failed solves are free.
+Each answer the service gives uses Browsa credits (a picture puzzle can take several answers); an answer it cannot
+give is free. The panel shows what each captcha was charged and what is left, and one click on "That was wrong"
+reports the last answer of a solve a site refused (Browsa decides about refunds).
+
+## Settings
+
+The panel has the key, on/off, Auto or Manual, Solve, a switch per type, and this site's switches. **Options** has
+the rest: for every type "Solve" and "By itself" separately, extra tries after a failed solve and the wait before
+each, where the Solve button shows on the page, a skip list or "only the sites below", the sites where picture text
+is solved without asking, Trusted input, the server, and export and import of the settings (your key stays out of
+the file unless you tick it).
+
+A picture captcha the extension does not recognise: right-click the picture, **Browsa Solver: this picture is a
+captcha**, then right-click its field, **the answer goes in this field**. It is remembered for that site.
 
 ## What it solves today
 
-| Type | Measured on | Passed | Median, page load to pass |
-|---|---|---|---|
-| reCAPTCHA v2 (checkbox and invisible) | Google's reCAPTCHA v2 demo page (checkbox) | 3 of 3 | 17.3 s |
-| GeeTest v3 slide | a public GeeTest v3 demo page | 3 of 3 | 12.0 s |
-| GeeTest v4 slide | a public GeeTest v4 demo page | 3 of 3 | 15.7 s |
-| Image text ("type the characters") | a public image-text captcha demo page | 3 of 3 | 9.7 s |
-| AWS WAF captcha | a public page behind the AWS WAF captcha | 3 of 3 | 28.1 s |
+| Type | Chrome: accepted | median | credits per solve | Firefox: accepted | median | credits per solve | On by default in |
+|---|---|---|---|---|---|---|---|
+| reCAPTCHA v2 (checkbox) | 31 of 33 | 14.5 s | 0.0071 | 11 of 13 | 56.6 s | about 0.1 (see below) | Chrome only |
+| GeeTest v3 slide | 15 of 15 | 12 s | 0.0091 | 15 of 15 | 12.2 s | 0.0096 | Chrome and Firefox |
+| GeeTest v4 slide | 15 of 15 | 16.5 s | 0.0133 | 15 of 15 | 16.6 s | 0.0133 | Chrome and Firefox |
+| Image text (22 Nov) | 14 of 15 | 9.4 s | 0.01 | 15 of 15 | 9.4 s | 0.01 | Chrome and Firefox |
+| AWS WAF captcha | 26 of 26 | 16 s | 0.0115 | no puzzle shown in 15 visits | - | - | Chrome only |
+| ALTCHA | 30 of 30 | 4.3 s | free | 15 of 15 | 4.6 s | free | Chrome and Firefox |
 
-Measured on 2026-11-21 with the 0.1.1 store package, in Chrome for
-Testing on a home connection: a fresh profile per attempt, one browser at a time, and a new challenge on every page
-load. The reCAPTCHA attempts and two of the GeeTest v3 attempts ran in a visible window, the rest headless.
+Measured on 2026-11-21 (image text on 2026-11-22, after the service changed how it reads it) with the 0.2.0 store packages against the live service: 15 attempts per type and browser, a
+fresh profile per attempt, a new challenge on every page load, on a home connection. Chrome is Chrome for Testing in a
+window; Firefox is Firefox 160 headless under geckodriver, which reports `navigator.webdriver` as true (a person's
+Firefox does not: a harder case). Median: seconds from page load to the widget's pass, accepted attempts. Credits:
+what the service charged per accepted solve.
 
-**A pass counts only when the site's own server accepts the answer**: the demo page's server verdict after its
-submit button, or for AWS WAF, the WAF token is set and the page behind the captcha loads. Ticking a box or
-dragging a slider is not counted.
+**Confirmation pass on the final build** (22 Nov, Chrome, 5 attempts each, spaced out): reCAPTCHA v2 5 of 5, GeeTest v3 5 of 5, GeeTest v4 5 of 5, AWS WAF 5 of 5, ALTCHA 5 of 5. No miss.
+
+**A pass counts only when the site's own server accepts the answer**: Google's reCAPTCHA demo page saying
+"Verification Success", a public GeeTest demo page whose server validates the result, a public image-text demo page answering "Correct!", for AWS WAF the WAF token being set and the page behind the captcha loading, and for ALTCHA
+Browsa's own ALTCHA deployment checking the proof on its server. Ticking a box or dragging a slider is not counted.
 
 Read these numbers for what they are:
 
-- Three attempts per type is a small sample. An earlier run the same day on the same build also passed 3 of 3 for
-  each type (medians 4.0 s, 10.8 s, 15.8 s, 9.8 s and 15.9 s in the order above).
 - A home connection with a fresh profile is a friendly case for reCAPTCHA. From a data-centre address, or in a
   browser Google distrusts, it asks for more picture rounds.
-- Firefox 160, the Firefox package, same pages, headless: reCAPTCHA 3 of 3, GeeTest v3 3 of 3, GeeTest v4 2 of 3,
-  image text 3 of 3. AWS WAF showed no captcha to Firefox, so there was nothing to measure.
+- ALTCHA: the extension only ticks the box; the widget does its own proof of work. Free, and nothing is sent.
+- The list is per browser. In Firefox, reCAPTCHA and AWS WAF are off for a new install (see "Not solved" below);
+  GeeTest and ALTCHA are on.
 
-### Coming next
+### Not solved
 
-hCaptcha, Cloudflare Turnstile and other types. Some of their code is already in `src/content/`. It ships switched
-off and unlisted until it passes on public pages under the same rule.
+- **Image text** (listed): on 21 Nov it was below the bar (82 of 98 through the extension, both browsers; every answer was typed exactly as the service gave it, so the misses were the service's readings). The service reads it with a stronger model since 21 Nov 18:34 UTC, at 0.01 credits a solve since 22 Nov. Measured again through the final extension build on 22 Nov, 15 attempts per browser on the same demo: Chrome 14 of 15, Firefox 15 of 15, median 9.4 s in both, 0.01 credits a solve. Listed again in both browsers. As before, a site is asked once before its picture captchas are solved by themselves.
+- **reCAPTCHA in Firefox**: under the bar where it could be measured, so it is off for a new install of the Firefox add-on and not on its list (in Chrome it is listed). 11 of 13 accepted, median 56.6 s from page load, about 10 answers (about 0.1 credits) a solve. The Firefox in the measurement is driven by geckodriver and says so to every site (`navigator.webdriver` is true), and Google answered with more and longer picture rounds (two attempts ran out of time). A person's own Firefox does not say that and should be treated like Chrome was, but that could not be measured here: an unsigned add-on can only be loaded into a driven Firefox. The run was stopped at 13 attempts: two misses already put 15 under the bar, and the solves had used up the workspace's hourly limit of the API. One switch in Options turns it on.
+- **Cloudflare Turnstile**: nothing to credit. On Browsa's own widget (a real key, managed mode; the page's server asks Cloudflare's siteverify), in a Chrome that nothing is attached to, 14 of 15 visits passed by themselves and the extension did not act in any of them. In a browser driven over the debugging protocol Cloudflare shows the checkbox and does not take the click (0 of 2 in Chrome). Off and unlisted.
+- **Cloudflare's check page**: the same click; not measured again (0 of 3 on 21 Nov with 0.1.1). Off and unlisted.
+- **hCaptcha**: the captcha API has no hCaptcha task today (its public type list), so there is nothing to measure. Off and unlisted.
+- **DataDome slider**: the API's slider task is switched off. Off and unlisted.
+- **Press & hold**: no public page with a server verdict and no API task; Chrome only (it needs Trusted input), not available in Firefox. Off and unlisted.
+- **Other GeeTest v4 puzzles** (icons, match, and so on): the API offers the slide task only; another puzzle is reported as "This puzzle type isn't supported yet".
+- **reCAPTCHA v3**: nothing to solve in the page (a score only), so no minimum-score setting: the service's `minScore` belongs to its token task, which the extension does not use.
+- **AWS WAF in Firefox**: no Firefox number. The page used for measuring let Firefox through without a puzzle in 15 of 16 visits (the one puzzle it showed fell in the minutes when the key was at its hourly limit). Off for a new install in Firefox (one switch in Options); the code is the same as in Chrome.
+
+These ship switched off (Options, "Not ready yet") and unlisted. A type joins a browser's list only after at least 15
+attempts through the extension in that browser with at least 9 in 10 accepted by the site's server.
 
 ## How it works
 
@@ -78,18 +108,22 @@ off and unlisted until it passes on public pages under the same rule.
 This matches [PRIVACY.md](PRIVACY.md), which is the policy.
 
 The extension talks to one service, Browsa's captcha API (`https://captcha.browsa.io` unless you change the server
-under Advanced), and only in these cases:
+in Options), and only in these cases:
 
 - **Solving a captcha**, after a solve was allowed to start:
   - reCAPTCHA, hCaptcha and DataDome: automatically, when the widget's own frame comes from the provider's address
     (google.com / recaptcha.net, hcaptcha.com, captcha-delivery.com).
   - GeeTest and AWS WAF: automatically, when the page loaded the provider's own scripts (geetest.com, awswaf.com).
   - Picture-text captchas: automatically only on sites where you answered "Solve" to the question the extension
-    asks the first time. On any other site, only when you press Solve.
-  - Anything, when you press Solve (the panel's button or Alt+Shift+S).
+    asks the first time, or where you marked the picture yourself. On any other site, only when you press Solve.
+  - Anything, when you press Solve (the panel's button, the button on the page, or Alt+Shift+S).
   - At most 3 automatic solves per page load and 10 per site per hour. After an answer was typed, the next picture
     on that page waits 30 s. A picture already solved is never sent again.
-- **Checking your key**, when you open the panel and when you change the key: your key only.
+- **Checking your key**, when you open the panel, when you change the key and after a paid solve: your key only.
+- **Reporting a wrong answer**, only when you press "That was wrong": your key and that answer's id.
+
+`test/e2e` checks this in real browsers: the browser's only way out is a recording proxy, and the run fails if an
+install, a solve and a report reach any host other than the page, the API and the welcome page.
 
 A solve sends the captcha's own picture or pictures and its question, the host name of the site (for example
 `example.com`, never the full address), and your API key. For hCaptcha, and for any captcha whose picture a page
@@ -97,7 +131,7 @@ script cannot read, the picture is a crop of the visible tab limited to the capt
 never leaves the browser.
 
 It never sends cookies, the page's HTML or text, form contents, passwords, your browsing history, or anything from
-pages without a supported captcha. Turnstile, Cloudflare's check page, Altcha and Press & hold are handled in the
+pages without a supported captcha. ALTCHA, Turnstile, Cloudflare's check page and Press & hold are handled in the
 page itself, and nothing is sent for them.
 
 Browsa does not store captcha pictures. A solve's answer is deleted after 10 minutes. What is kept, on the
@@ -112,11 +146,12 @@ on install opens `https://browsa.io/extension` in a new tab.
 
 | Permission | Why |
 |---|---|
-| `storage` | Settings, your key and its last check, the sites you allowed for picture text, and the last 50 solves, on your device. Per-session counters and recently solved answers go in session storage, cleared when the browser closes. |
-| Host access `<all_urls>` | Captchas appear on any site and inside the provider's own frames, so the content script must run in those frames. The background uses it to send the captcha to the API, to fetch GeeTest's pictures, and to crop a captcha from the visible tab when a page script cannot read its picture. |
+| `storage` | Settings, your key and its last check, the sites you allowed, skip or list, the pictures you marked, and the last 50 solves, on your device. Per-session counters and recently solved answers go in session storage, cleared when the browser closes. |
+| `contextMenus` | The two right-click entries: "this picture is a captcha" and "the answer goes in this field". |
+| Host access `<all_urls>` | Captchas appear on any site and inside the provider's own frames, so the content script must run in those frames, and the sites cannot be listed in advance. The background uses the access to send the captcha to the API, to fetch GeeTest's pictures, and to crop a captcha from the visible tab when a page script cannot read its picture. You can narrow it yourself: Options has a skip list and "only the sites below", and the browser's own site-access setting works too. |
 | `debugger` (optional, Chrome) | Requested only when you switch on Trusted input. Sends pointer and key events as real input. Nothing is read through it. |
 | `webNavigation` (optional, Chrome) | Requested with Trusted input. Finds where a captcha's frame sits on the page so those events land in the right place. |
-| Firefox data collection | Declared for Firefox's install prompt: `authenticationInfo` (your API key) and `websiteContent` (the captcha and the site's host name). |
+| Firefox data collection | Declared for Firefox's install prompt: `authenticationInfo` (your API key), `websiteContent` (the captcha's picture and question) and `browsingActivity` (the host name of the site a captcha is solved on). |
 
 The keyboard shortcut Alt+Shift+S presses Solve.
 
@@ -129,10 +164,15 @@ git clone https://github.com/browsa-io/captcha-solver.git
 cd captcha-solver
 npm ci
 npm run typecheck
-npm test
+npm test                  # unit tests, no browser
 npm run build             # dist/chrome
 npm run build:firefox     # dist/firefox
+npm run e2e               # the built package in Chrome for Testing (npx playwright-core install chromium)
+npm run e2e:firefox       # the same in Firefox through geckodriver (FIREFOX=<binary> picks the browser)
 ```
+
+The end-to-end suite runs the built package in a fresh browser profile on local fixture pages, against a local
+stand-in for the API. It needs no key and reaches nothing on the internet.
 
 Load the build:
 
@@ -140,8 +180,8 @@ Load the build:
 - **Firefox**: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, pick
   `dist/firefox/manifest.json`.
 
-`node scripts/build.mjs --api=https://...` changes the API address compiled in as the default. The panel's
-Advanced section can also change it.
+`node scripts/build.mjs --api=https://...` changes the API address compiled in as the default. Options can also
+change it.
 
 ### Reproducible build
 
@@ -241,11 +281,12 @@ the extension is installed.
 | Path | What it is |
 |---|---|
 | `src/content/` | The content script: one module per captcha type, the in-page notice, and `main.ts`, which starts them |
-| `src/lib/` | Provider checks (`origin.ts`), what may start a solve (`guard.ts`), motion (`human.ts`), input (`input.ts`), messages (`reasons.ts`) |
+| `src/lib/` | Settings (`config.ts`), provider checks (`origin.ts`), what may start a solve (`guard.ts`), motion (`human.ts`), input (`input.ts`), messages (`reasons.ts`, `i18n.ts`) |
 | `src/background.ts` | The only network requests: API calls, GeeTest pictures, the tab-capture fallback, the solve log |
-| `src/popup/` | The panel |
+| `src/popup/`, `src/options/` | The panel and the Options page |
+| `src/_locales/en/messages.json` | Every text a person reads (English; another language is one more file) |
 | `scripts/` | `build.mjs`, `package.mjs` (store zips), `hashes.mjs` (file hashes and comparison) |
-| `test/` | Unit tests (`npm test`), no keys or network needed |
+| `test/` | Unit tests (`npm test`) with fixture pages in `test/fixtures`; `test/e2e/` runs the built package in Chrome and Firefox. No keys or network needed |
 
 ## Contributing and security
 

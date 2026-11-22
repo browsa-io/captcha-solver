@@ -1,0 +1,605 @@
+{
+  "ext_name": {
+    "message": "Browsa Captcha Solver"
+  },
+  "short_name": {
+    "message": "Browsa Solver"
+  },
+  "ext_description": {
+    "message": "Solves image captchas with human-like input, rates measured on each site's own server. Use it only where you are authorized."
+  },
+  "cmd_solve": {
+    "message": "Solve the captcha on this page"
+  },
+  "menu_mark_image": {
+    "message": "Browsa Solver: this picture is a captcha"
+  },
+  "menu_mark_input": {
+    "message": "Browsa Solver: the answer goes in this field"
+  },
+  "captcha": {
+    "message": "Captcha"
+  },
+  "this_captcha": {
+    "message": "This captcha"
+  },
+  "solve_again": {
+    "message": "Press Solve to try again."
+  },
+  "n_credits": {
+    "message": "$1 credits"
+  },
+  "n_rounds": {
+    "message": "$1 rounds"
+  },
+  "saved": {
+    "message": "Saved"
+  },
+  "a_solve": {
+    "message": "Solve"
+  },
+  "a_save": {
+    "message": "Save"
+  },
+  "a_turn_on": {
+    "message": "Turn on"
+  },
+  "a_get_key": {
+    "message": "Get a free key"
+  },
+  "a_have_key": {
+    "message": "I have a key"
+  },
+  "a_open_keys": {
+    "message": "Open keys"
+  },
+  "a_buy_credits": {
+    "message": "Buy credits"
+  },
+  "a_credits": {
+    "message": "Credits"
+  },
+  "a_open_dashboard": {
+    "message": "Open dashboard"
+  },
+  "a_not_here": {
+    "message": "Not here"
+  },
+  "a_options": {
+    "message": "Options"
+  },
+  "a_privacy": {
+    "message": "Privacy"
+  },
+  "a_help": {
+    "message": "Help"
+  },
+  "a_source": {
+    "message": "Source code"
+  },
+  "a_dismiss": {
+    "message": "Dismiss"
+  },
+  "a_wrong": {
+    "message": "That was wrong"
+  },
+  "a_remove": {
+    "message": "Remove"
+  },
+  "a_export": {
+    "message": "Export settings"
+  },
+  "a_import": {
+    "message": "Import settings"
+  },
+  "t_on_off": {
+    "message": "Solver on or off"
+  },
+  "l_solver_on": {
+    "message": "Solver on"
+  },
+  "off_bar": {
+    "message": "The solver is off. Nothing is solved."
+  },
+  "onboard": {
+    "message": "Solving needs a Browsa API key. A new account gets free solves to try it, with no card."
+  },
+  "l_api_key": {
+    "message": "Browsa API key"
+  },
+  "ph_key": {
+    "message": "Paste your Browsa API key"
+  },
+  "l_mode": {
+    "message": "Mode"
+  },
+  "mode_auto": {
+    "message": "Auto"
+  },
+  "mode_manual": {
+    "message": "Manual"
+  },
+  "t_mode_auto": {
+    "message": "Solve as soon as a captcha shows"
+  },
+  "t_mode_manual": {
+    "message": "Only when you press Solve"
+  },
+  "t_solve": {
+    "message": "Solve on this page (Alt+Shift+S)"
+  },
+  "t_solve_no_key": {
+    "message": "Add your API key first"
+  },
+  "t_solve_refused": {
+    "message": "Your key was refused"
+  },
+  "l_types": {
+    "message": "Captcha types"
+  },
+  "hint_presshold": {
+    "message": "Press & hold needs Trusted input (Options)."
+  },
+  "t_no_trusted_firefox": {
+    "message": "Needs real pointer input, which Firefox does not offer to add-ons"
+  },
+  "picture_text": {
+    "message": "Picture text"
+  },
+  "t_text_site": {
+    "message": "Solve picture-text captchas here without asking"
+  },
+  "skip_site": {
+    "message": "Skip site"
+  },
+  "l_recent": {
+    "message": "Recent solves"
+  },
+  "log_empty": {
+    "message": "No solves yet"
+  },
+  "typed_note": {
+    "message": "Typed into the field. The site checks it when you send the form."
+  },
+  "cost_charged": {
+    "message": "$1."
+  },
+  "cost_free": {
+    "message": "Not charged."
+  },
+  "t_wrong": {
+    "message": "Tell Browsa the site refused the last answer of this solve. Browsa decides about a refund."
+  },
+  "rep_sending": {
+    "message": "Reporting…"
+  },
+  "rep_sent": {
+    "message": "Reported."
+  },
+  "rep_refund": {
+    "message": "Refunded $1."
+  },
+  "rep_no_refund": {
+    "message": "No refund was made."
+  },
+  "st_looking": {
+    "message": "Looking for a captcha…"
+  },
+  "st_solving": {
+    "message": "Solving: $1"
+  },
+  "st_unreachable": {
+    "message": "This page can't be reached by the extension"
+  },
+  "bal_refused": {
+    "message": "Key refused"
+  },
+  "bal_trial_used": {
+    "message": "Free solves used up"
+  },
+  "bal_zero": {
+    "message": "0 credits"
+  },
+  "bal_offline": {
+    "message": "Offline"
+  },
+  "bal_trial": {
+    "message": "$1 of $2 free solves left"
+  },
+  "trial_daily_title": {
+    "message": "Up to $1 a day; $2 used today"
+  },
+  "t_balance": {
+    "message": "Balance"
+  },
+  "key_refused": {
+    "message": "Your key was refused. Check it in the dashboard, or paste a new one."
+  },
+  "key_trial_used": {
+    "message": "Your free solves are used up. Solving starts again when you buy credits."
+  },
+  "key_no_credits": {
+    "message": "Out of credits. Solving starts again when you add some."
+  },
+  "key_offline": {
+    "message": "Couldn't reach Browsa. Check your connection; nothing is charged meanwhile."
+  },
+  "r_unsupported": {
+    "message": "This captcha type isn't supported yet"
+  },
+  "r_type_off_service": {
+    "message": "Browsa's service does not solve this type right now."
+  },
+  "r_no_key": {
+    "message": "Add your Browsa API key"
+  },
+  "r_error_key_denied_access": {
+    "message": "Your key was refused. Check it in the dashboard."
+  },
+  "r_trial_used": {
+    "message": "Your free solves are used up. Buy credits to keep solving."
+  },
+  "r_trial_daily": {
+    "message": "Today's free solves are used. More tomorrow, or buy credits."
+  },
+  "r_needs_credits": {
+    "message": "Solving needs credits in your workspace."
+  },
+  "r_account_unverified": {
+    "message": "Verify your Browsa account first (the email we sent you)."
+  },
+  "r_account_suspended": {
+    "message": "Your Browsa account is suspended. Write to support@browsa.io."
+  },
+  "r_site_blocked": {
+    "message": "Browsa does not solve captchas on this site."
+  },
+  "r_error_zero_balance": {
+    "message": "Out of credits"
+  },
+  "r_error_budget_exceeded": {
+    "message": "Your workspace's monthly limit is reached"
+  },
+  "r_key_limit": {
+    "message": "Your key's solving limit is reached for now. Try again later."
+  },
+  "r_rate_limit": {
+    "message": "Too many solves at once. Try again in a few seconds."
+  },
+  "r_site_off": {
+    "message": "Solving is off on this site"
+  },
+  "r_site_not_listed": {
+    "message": "This site is not in your list of allowed sites"
+  },
+  "r_type_off": {
+    "message": "$1 solving is off (switch it on in the panel)"
+  },
+  "r_auto_off": {
+    "message": "$1 waits for you here"
+  },
+  "r_off": {
+    "message": "The solver is switched off"
+  },
+  "r_needs_trusted": {
+    "message": "$1 needs \"Trusted input\" (Options)"
+  },
+  "r_no_trusted": {
+    "message": "$1 needs real pointer input, which this browser does not offer"
+  },
+  "r_ask_site": {
+    "message": "Solve picture captchas on this site?"
+  },
+  "r_text_no": {
+    "message": "Picture captchas are not solved on this site. Press Solve to solve one."
+  },
+  "r_page_limit": {
+    "message": "Paused after 3 solves on this page. Press Solve to go on."
+  },
+  "r_site_limit": {
+    "message": "Paused after 10 solves on this site in an hour. Press Solve to go on."
+  },
+  "r_cooldown": {
+    "message": "Waiting 30 s after your last answer. Press Solve to solve now."
+  },
+  "r_already_solved": {
+    "message": "This picture was already solved"
+  },
+  "r_unverified": {
+    "message": "This doesn't come from the captcha's own provider, so it isn't solved by itself. Press Solve to solve it."
+  },
+  "r_geetest_network": {
+    "message": "GeeTest couldn't reach its server. Try again in a moment."
+  },
+  "r_offline": {
+    "message": "You are offline."
+  },
+  "r_network_error": {
+    "message": "Couldn't reach Browsa. Check your connection."
+  },
+  "r_service_down": {
+    "message": "Browsa's service is busy. Try again in a few seconds."
+  },
+  "r_refused": {
+    "message": "Google refused this browser for now. Try again later."
+  },
+  "r_audio_only": {
+    "message": "Only a sound puzzle was offered, which is not supported"
+  },
+  "r_other_puzzle": {
+    "message": "This puzzle type isn't supported yet"
+  },
+  "r_unreadable": {
+    "message": "Couldn't read this captcha."
+  },
+  "r_timeout": {
+    "message": "Took too long."
+  },
+  "r_not_taken": {
+    "message": "$1 did not take the click. Trusted input (Options) can help."
+  },
+  "r_refused_by_site": {
+    "message": "The site's check refused this browser for now"
+  },
+  "r_hold_failed": {
+    "message": "The hold was not accepted."
+  },
+  "r_new_puzzle": {
+    "message": "The site asked again."
+  },
+  "r_no_captcha": {
+    "message": "No captcha found on this page"
+  },
+  "r_closed": {
+    "message": "The puzzle was closed before it was solved"
+  },
+  "r_expired": {
+    "message": "The captcha expired."
+  },
+  "r_mark_image": {
+    "message": "Picture marked. Now right-click the field its answer goes in and choose \"the answer goes in this field\"."
+  },
+  "r_mark_input_first": {
+    "message": "First right-click the captcha picture and choose \"this picture is a captcha\"."
+  },
+  "r_mark_saved": {
+    "message": "Saved for this site. Picture captchas here are now solved by themselves (Options, Sites)."
+  },
+  "r_mark_failed": {
+    "message": "Couldn't mark that. Right-click the captcha picture itself, then its answer field."
+  },
+  "r_failed": {
+    "message": "Couldn't solve it."
+  },
+  "r_error_already_reported": {
+    "message": "This answer was already reported."
+  },
+  "r_error_report_too_late": {
+    "message": "Too late to report: Browsa takes a report for 15 minutes after the solve."
+  },
+  "r_error_report_not_solved": {
+    "message": "Nothing to report: this was never charged."
+  },
+  "r_error_report_limit": {
+    "message": "Browsa did not take this report: too many of your recent solves were reported."
+  },
+  "r_error_taskid_invalid": {
+    "message": "This answer can no longer be reported."
+  },
+  "offer_solve": {
+    "message": "Solve this $1 with Browsa Solver"
+  },
+  "v_solved": {
+    "message": "Solved"
+  },
+  "v_typed": {
+    "message": "Answer typed"
+  },
+  "v_failed": {
+    "message": "Failed"
+  },
+  "v_skipped": {
+    "message": "Not solved"
+  },
+  "v_unsupported": {
+    "message": "Not supported"
+  },
+  "v_paused": {
+    "message": "Paused"
+  },
+  "options_title": {
+    "message": "Browsa Solver options"
+  },
+  "o_types": {
+    "message": "Captcha types"
+  },
+  "o_types_hint": {
+    "message": "Solve: the type is solved at all. By itself: without a click, when the panel is on Auto; off means it waits for the Solve button."
+  },
+  "o_col_type": {
+    "message": "Type"
+  },
+  "o_col_solve": {
+    "message": "Solve"
+  },
+  "o_col_auto": {
+    "message": "By itself"
+  },
+  "o_col_cost": {
+    "message": "Cost"
+  },
+  "l_solve_type": {
+    "message": "Solve $1"
+  },
+  "l_auto_type": {
+    "message": "Solve $1 by itself"
+  },
+  "cost_credits": {
+    "message": "Credits per answer; a puzzle can take several"
+  },
+  "cost_in_page": {
+    "message": "Free: solved in the page"
+  },
+  "cost_free_trusted": {
+    "message": "Free; needs Trusted input"
+  },
+  "o_unlisted": {
+    "message": "Not ready yet"
+  },
+  "o_unlisted_hint": {
+    "message": "These did not reach our bar (9 of 10 accepted by the site) or could not be measured, so they are off. You can try them."
+  },
+  "o_fail": {
+    "message": "After a failed solve"
+  },
+  "o_retries": {
+    "message": "Extra tries (0 to 3)"
+  },
+  "o_retry_delay": {
+    "message": "Seconds before each try (1 to 60)"
+  },
+  "o_fail_hint": {
+    "message": "Only puzzle and network failures are tried again, never a key, credit or site refusal. Each answer the service gives is charged, also in a try that then fails."
+  },
+  "o_button": {
+    "message": "Solve button on the page"
+  },
+  "o_button_pos": {
+    "message": "Position"
+  },
+  "pos_beside": {
+    "message": "Next to the captcha"
+  },
+  "pos_top_right": {
+    "message": "Top right"
+  },
+  "pos_bottom_right": {
+    "message": "Bottom right"
+  },
+  "pos_bottom_left": {
+    "message": "Bottom left"
+  },
+  "pos_off": {
+    "message": "No button"
+  },
+  "o_button_hint": {
+    "message": "Shown only while a captcha waits for a click: in Manual mode, or for a type that does not solve by itself."
+  },
+  "o_sites": {
+    "message": "Sites"
+  },
+  "o_mode_all": {
+    "message": "All sites, except the ones below"
+  },
+  "o_mode_allow": {
+    "message": "Only the sites below"
+  },
+  "o_skip": {
+    "message": "Never on these sites"
+  },
+  "o_only": {
+    "message": "Only on these sites"
+  },
+  "ph_hosts": {
+    "message": "one host per line, e.g. example.com"
+  },
+  "o_text_sites": {
+    "message": "Picture text solved without asking on"
+  },
+  "o_custom": {
+    "message": "Picture captchas you marked"
+  },
+  "o_custom_hint": {
+    "message": "On a page: right-click the captcha picture, \"this picture is a captcha\", then right-click its field, \"the answer goes in this field\"."
+  },
+  "o_custom_none": {
+    "message": "None yet"
+  },
+  "l_remove_site": {
+    "message": "Remove $1"
+  },
+  "o_input": {
+    "message": "Input"
+  },
+  "o_trusted": {
+    "message": "Trusted input"
+  },
+  "o_trusted_hint": {
+    "message": "Real pointer events through the browser's debugger, for sites that refuse page events. The browser shows a bar while it is on."
+  },
+  "o_trusted_firefox": {
+    "message": "Firefox does not let add-ons send real pointer events, so Trusted input and Press & hold are not available here."
+  },
+  "o_submit_text": {
+    "message": "Press Enter after typing picture text"
+  },
+  "o_server": {
+    "message": "Server"
+  },
+  "o_server_label": {
+    "message": "Address of the solving service"
+  },
+  "server_needed": {
+    "message": "Needed: the address of the solving server"
+  },
+  "server_not_address": {
+    "message": "Not a web address"
+  },
+  "server_https": {
+    "message": "Use an https:// address"
+  },
+  "server_no_query": {
+    "message": "No ? or # part"
+  },
+  "o_backup": {
+    "message": "Backup"
+  },
+  "o_export_key": {
+    "message": "Include my API key in the file"
+  },
+  "o_backup_hint": {
+    "message": "A file with these settings, to move them to another browser. Your key stays out unless you tick the box."
+  },
+  "o_exported": {
+    "message": "Exported without your key."
+  },
+  "o_exported_key": {
+    "message": "Exported with your key: keep the file private."
+  },
+  "o_imported": {
+    "message": "Imported."
+  },
+  "o_import_not_json": {
+    "message": "That file is not a settings file (not JSON)."
+  },
+  "o_import_not_settings": {
+    "message": "That file was not exported from Browsa Solver."
+  },
+  "o_perm": {
+    "message": "What the extension may do, and why"
+  },
+  "perm_sites": {
+    "message": "Read and change pages on all sites"
+  },
+  "perm_sites_why": {
+    "message": "A captcha can be on any site, inside a frame from its provider. The extension looks for one, reads only its picture and acts only on it."
+  },
+  "perm_storage": {
+    "message": "Storage"
+  },
+  "perm_storage_why": {
+    "message": "Keeps these settings, your key and the last 50 solves on this device."
+  },
+  "perm_menus": {
+    "message": "Right-click menu"
+  },
+  "perm_menus_why": {
+    "message": "The two \"this picture is a captcha\" entries."
+  },
+  "perm_debugger": {
+    "message": "Debugger (asked only if you turn on Trusted input)"
+  },
+  "perm_debugger_why": {
+    "message": "Sends real pointer and key events. Nothing is read through it."
+  }
+}

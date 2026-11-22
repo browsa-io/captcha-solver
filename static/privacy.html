@@ -11,38 +11,58 @@
   h1 { color: oklch(0.955 0.008 155); font-size: 22px; }
   h2 { color: oklch(0.955 0.008 155); font-size: 16px; margin-top: 24px; }
   code { color: oklch(0.83 0.14 152); }
+  a { color: oklch(0.83 0.14 152); }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-top: 1px solid oklch(0.25 0.012 160); }
+  th { color: oklch(0.955 0.008 155); font-weight: 600; width: 34%; }
 </style>
 </head>
 <body>
+<main>
 <h1>Privacy</h1>
 <p>The extension talks to one service, Browsa's captcha API, and only in these cases.</p>
 <h2>When it sends something</h2>
 <ul>
-  <li>Solving a captcha. reCAPTCHA, hCaptcha and DataDome start by themselves only in the provider's own frame
-    (checked by its address); GeeTest and AWS WAF only when the page loaded the provider's own scripts; picture-text
-    captchas only on sites where you said yes, otherwise when you press Solve.</li>
-  <li>At most 3 automatic solves per page and 10 per site per hour. A picture already solved is never sent again.</li>
-  <li>Checking your key, when you open the panel or change the key: the key only.</li>
+  <li>Solving a captcha. reCAPTCHA (pictures and its audio challenge), hCaptcha, MTCaptcha and DataDome start by
+    themselves only in the provider's own frame (checked by its address); GeeTest, AWS WAF, Tencent, NetEase Yidun,
+    Dingxiang, Cutcaptcha and CyberSiARA only when the page loaded the provider's own scripts; picture-text
+    captchas only on sites where you said yes or marked the picture yourself, otherwise when you press Solve.</li>
+  <li>At most 3 automatic solves per page and 10 per site per hour. A picture already solved is never sent again.
+    Never on a site you skip, outside your allow list, or for a type you switched off.</li>
+  <li>Checking your key, when you open the panel, change the key or after a paid solve: the key only.</li>
+  <li>Reporting a wrong answer, only when you press "That was wrong": your key and that answer's id.</li>
 </ul>
 <h2>What a solve sends</h2>
 <ul>
-  <li>the captcha's own picture(s) and its question (for example "traffic lights"). When a picture can only be read
+  <li>the captcha's own picture(s) and its question (for example "traffic lights"); for a puzzle, what it shows
+    and where its parts sit (the tiles' pictures and sizes, the reference icons; for GeeTest's IconCrush and gobang
+    only which icon is on which tile); for reCAPTCHA's audio challenge (used only when picture rounds keep failing and
+    its switch is on), Google's sound clip. When a picture can only be read
     from the screen (hCaptcha, or a picture a page script cannot read), a crop of just the captcha is sent; the rest
     of the screenshot never leaves the browser;</li>
   <li>the host name of the site the captcha is on (for example <code>example.com</code>), never the full address;</li>
   <li>your Browsa API key, so the solve is counted for your workspace.</li>
 </ul>
 <p>What it never sends: cookies, the page's HTML or text, form contents, passwords, your browsing history, or anything
-from pages without a supported captcha. Cloudflare's checks, Altcha and Press &amp; hold are solved in the page:
-nothing is sent for them.</p>
-<p>What it fetches: GeeTest's own puzzle pictures, from GeeTest's servers, the same files the page already loaded.</p>
+from pages without a supported captcha. ALTCHA, Cloudflare's checks and Press &amp; hold are handled in the page:
+nothing is sent for them. No analytics, no error reporting, no remote code.</p>
+<p>What it fetches: a captcha's own puzzle files, from that provider's own servers only, the same files the page
+already loaded (GeeTest's, Tencent's, NetEase Yidun's and Dingxiang's pictures, CyberSiARA's animation).
+On install it opens the welcome page, browsa.io/extension.</p>
 <h2>What is kept</h2>
 <p>Browsa does not store captcha pictures: a solve keeps its type, the site's host, sizes, timing and model cost, and
-its answer is deleted after 10 minutes. In your browser: settings, your key and its last check, the sites you allowed
-for picture text, and the last 50 solves (time, site, type, result, reason); until the browser closes, the solve
-counters and, for 30 minutes, the answers of pictures already solved.</p>
-<p>"Trusted input" (off unless you turn it on) lets the extension send pointer and key events through Chrome's
-debugger interface; Chrome shows a bar while it is attached. Nothing else is read through it.</p>
-<p>Questions: support@browsa.io.</p>
+its answer is deleted after 10 minutes. In your browser, on this device: settings, your key and its last check, the
+sites you allowed for picture text, the pictures you marked, and the last 50 solves (time, site, type, result, reason,
+what was charged); until the browser closes, the solve counters and, for 30 minutes, the answers of pictures already
+solved. Export writes your settings to a file you choose, without your key unless you ask.</p>
+<h2>What it may do, and why</h2>
+<table>
+  <tr><th>All sites</th><td>A captcha can be on any site, inside a frame from its provider. The extension looks for one, reads only its picture and acts only on it.</td></tr>
+  <tr><th>Storage</th><td>Settings, your key and the last 50 solves, on this device.</td></tr>
+  <tr><th>Right-click menu</th><td>The two "this picture is a captcha" entries.</td></tr>
+  <tr><th>Debugger (Chrome, only if you turn on Trusted input)</th><td>Real pointer and key events for sites that refuse page events. Chrome shows a bar while it is attached. Nothing is read through it.</td></tr>
+</table>
+<p>The full text: <a href="https://browsa.io/extension/privacy" target="_blank" rel="noopener">browsa.io/extension/privacy</a>. Questions: support@browsa.io.</p>
+</main>
 </body>
 </html>

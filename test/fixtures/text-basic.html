@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Sign in</title>
+<style>body{font:15px system-ui,sans-serif;margin:32px;max-width:640px}input,button{font:inherit;padding:6px 8px;margin:4px 0}</style></head>
+<body>
+<h1>Confirm</h1>
+<form id="f"><img id="captchaImage" src="/captcha.png" alt="captcha" width="140" height="48"><br>
+<label>Characters <input type="text" name="captcha" autocomplete="off"></label>
+<button type="submit" id="send">Check</button></form>
+<pre id="out"></pre>
+<script>
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('/check', { method: 'POST', body: new FormData(e.target).get('captcha') || '' });
+  document.getElementById('out').textContent = await r.text();
+});
+</script>
+</body></html>

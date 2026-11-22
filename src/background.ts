@@ -3,19 +3,24 @@
 //     API call belongs to a begun solve; a page cannot start one, only the extension's own content script can.
 //   - createTask: the one place a request leaves for the API. It carries the key, the captcha's picture(s) and
 //     question, and the site's host name only (no path, no query, no cookies, no page content).
-//   - fetchImage: GeeTest's own picture files, from GeeTest's static hosts only.
+//   - fetchImage: a captcha's own picture or sound files, from that provider's hosts only (origin.ts FILE_HOSTS).
 //   - capture: a crop of the visible tab, for a captcha picture a canvas cannot read.
 //   - trusted: plays a planned pointer gesture through chrome.debugger (opt-in, Chrome only).
 //   - the solve log, the badge, the key's state, notices sent on to the top frame, the Solve button's fan-out.
-import { type Config, type Kind, IS_AUTOMATION, KIND_INFO, gate, load, save, hostIn } from './lib/config';
+import { type Config, type CustomText, type Kind, IS_AUTOMATION, KIND_INFO, autoOn, gate, load, save, hostIn } from './lib/config';
 import { Guard } from './lib/guard';
-import { LINKS, verdictFor } from './lib/reasons';
-import { providerFrame } from './lib/origin';
+import { LINKS, refine, verdictFor } from './lib/reasons';
+import { fileAllowed, providerFrame } from './lib/origin';
+import { t } from './lib/i18n';
 
-const API_TIMEOUT_MS = 60_000;
+const API_TIMEOUT_MS = 40_000;     // the longest held call (25 s) and room for a slow answer; then "couldn't reach Browsa"
+const ALIVE_MS = 20_000;           // while a call is out, the background says it is busy (see api())
+const WAIT_S = 25;                 // the API holds a call this long at most (GET /types: features.waitSeconds.max)
+const TOKEN_BUDGET_MS = 150_000;   // a task answered later (token types): held calls one after another, no timer
+export const REPORT_WINDOW_MS = 15 * 60_000;   // the API takes a report for 15 minutes after the solve
+const USER_FIX = /^ERROR_(RATE_LIMIT|BUDGET_EXCEEDED|SERVICE_UNAVALIABLE|TASK_TIMEOUT)$/;
 const LOG_MAX = 50;
 const SESSION_TTL_MS = 5 * 60_000;
-const IMAGE_HOSTS = /^(static|static\d*|gcaptcha4|api|apiv6)\.(geetest|geevisit)\.com$/i;
 
 const hostOf = (u?: string) => {
   try { return u ? new URL(u).hostname.toLowerCase() : ''; } catch { return ''; }
@@ -36,6 +41,7 @@ async function applyAutomationConfig() {
 }
 chrome.runtime.onInstalled.addListener((d) => {
   void applyAutomationConfig();
+  menus();
   // a first install opens the welcome page (what it does, the three steps); never in automation runs
   if (d.reason === 'install' && !IS_AUTOMATION) void chrome.tabs.create({ url: LINKS.welcome + '?from=install' }).catch(() => undefined);
 });
@@ -52,15 +58,22 @@ function saveGuard() { session?.set({ guard: guard.s }).catch(() => undefined); 
 
 // ---------------------------------------------------------------- the key's state (popup: red when refused)
 
-export interface KeyState { state: 'ok' | 'refused' | 'no_credits' | 'unknown' | 'none'; balance?: number; unit?: string; at: number; code?: string; tail?: string }
+export interface Trial { total: number; used: number; left: number; dailyLimit?: number; usedToday?: number }
+export interface KeyState {
+  state: 'ok' | 'refused' | 'no_credits' | 'trial_used' | 'offline' | 'unknown' | 'none';
+  balance?: number; unit?: string; at: number; code?: string; tail?: string; trial?: Trial; fix?: string;
+}
 
 async function setKeyState(k: Omit<KeyState, 'at'>) {
   await chrome.storage.local.set({ keyState: { ...k, at: Date.now() } });
 }
 
-function keyStateFrom(code: string | undefined): KeyState['state'] | '' {
-  if (code === 'ERROR_KEY_DENIED_ACCESS') return 'refused';
-  if (code === 'ERROR_ZERO_BALANCE') return 'no_credits';
+/** What an API error says about the key itself ('' when it says nothing: a limit, a blocked site, the network). */
+function keyStateFrom(r: any): KeyState['state'] | '' {
+  const reason = refine(r?.errorCode, r?.errorDescription);
+  if (reason === 'error_key_denied_access') return 'refused';
+  if (reason === 'trial_used') return 'trial_used';
+  if (reason === 'error_zero_balance') return 'no_credits';
   return '';
 }
 
@@ -69,6 +82,12 @@ function keyStateFrom(code: string | undefined): KeyState['state'] | '' {
 async function api(cfg: Config, method: string, body: Record<string, unknown>): Promise<any> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
+  // Firefox stops an idle background page after 30 s even while a request of its own is still out, and the solve
+  // waiting for the answer then ends with no answer at all (seen in Firefox on GeeTest, 2 of 8 solves). A cheap
+  // extension call every 20 s says the page is in use, so a slow request ends by its own timeout, in words.
+  const alive = setInterval(() => { void chrome.runtime.getPlatformInfo().catch(() => undefined); }, ALIVE_MS);
+  stats.started++;
+  saveStats();
   try {
     const r = await fetch(cfg.apiBase.replace(/\/+$/, '') + '/' + method, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'omit',
@@ -76,9 +95,16 @@ async function api(cfg: Config, method: string, body: Record<string, unknown>): 
     });
     return await r.json();
   } catch (e) {
-    return { errorId: 1, errorCode: 'NETWORK_ERROR', errorDescription: String((e as Error)?.message || e).slice(0, 120) };
+    if (ctl.signal.aborted) stats.timeouts++;
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    // (no "charged" here: only the API can say whether something was charged)
+    return { errorId: 1, errorCode: offline ? 'OFFLINE' : 'NETWORK_ERROR',
+      errorDescription: String((e as Error)?.message || e).slice(0, 120) };
   } finally {
     clearTimeout(timer);
+    clearInterval(alive);
+    stats.ended++;
+    saveStats();
   }
 }
 
@@ -86,12 +112,25 @@ async function balance() {
   const cfg = await load();
   if (!cfg.apiKey) { await setKeyState({ state: 'none' }); return { errorId: 1, errorCode: 'NO_KEY' }; }
   const r = await api(cfg, 'getBalance', {});
+  const tail = cfg.apiKey.slice(-6);
+  const old = (await chrome.storage.local.get('keyState')).keyState as KeyState | undefined;
   if (r && !r.errorId) {
     const n = Number(r.balance);
-    await setKeyState({ state: n <= 0 ? 'no_credits' : 'ok', balance: n, unit: r.unit || 'usd', tail: cfg.apiKey.slice(-6) });
+    // the free trial, when the API reports it (a workspace that has not bought credits yet)
+    const tr = r.trial && typeof r.trial === 'object' && Number(r.trial.total) > 0 ? {
+      total: Number(r.trial.total), used: Number(r.trial.used) || 0,
+      left: Math.max(0, Number(r.trial.left ?? Number(r.trial.total) - (Number(r.trial.used) || 0))),
+      dailyLimit: Number(r.trial.dailyLimit) || undefined, usedToday: Number(r.trial.usedToday) || 0 } as Trial : undefined;
+    let state: KeyState['state'] = n <= 0 ? 'no_credits' : 'ok';
+    if (tr && tr.left <= 0) state = 'trial_used';
+    // a trial the API said was used up stays so (an older API does not report the trial with the balance)
+    else if (!tr && old && old.state === 'trial_used' && old.tail === tail && Date.now() - old.at < 6 * 3600_000) state = 'trial_used';
+    await setKeyState({ state, balance: n, unit: r.unit || 'usd', tail, trial: tr });
   } else {
-    const s = keyStateFrom(r?.errorCode);
-    await setKeyState({ state: s || 'unknown', code: r?.errorCode, tail: cfg.apiKey.slice(-6) });
+    const s = keyStateFrom(r);
+    const off = r?.errorCode === 'OFFLINE' || r?.errorCode === 'NETWORK_ERROR';
+    await setKeyState({ state: s || (off ? 'offline' : 'unknown'), code: r?.errorCode, tail, fix: typeof r?.fix === 'string' ? r.fix.slice(0, 200) : undefined,
+      balance: off ? old?.balance : undefined, unit: off ? old?.unit : undefined, trial: off ? old?.trial : undefined });
   }
   return r;
 }
@@ -114,19 +153,69 @@ async function createTask(sender: chrome.runtime.MessageSender, kind: Kind, task
   // its HTML or anything typed into it.
   const clean = { ...task, websiteURL: host ? `https://${host}/` : undefined };
   const t0 = Date.now();
-  const r = await api(cfg, 'createTask', { task: clean });
+  // One call: the API answers a picture task inside createTask, and holds the call (waitSeconds) for a task that
+  // takes longer. A task still running after that is waited for with held getTaskResult calls: no poll timer.
+  let r = await api(cfg, 'createTask', { task: clean, waitSeconds: WAIT_S });
+  while (r && !r.errorId && r.taskId && r.status === 'processing' && Date.now() - t0 < TOKEN_BUDGET_MS) {
+    r = { taskId: r.taskId, ...(await api(cfg, 'getTaskResult', { taskId: r.taskId, waitSeconds: WAIT_S })) };
+  }
+  if (r && !r.errorId && r.status === 'processing') r = { errorId: 1, errorCode: 'ERROR_TASK_TIMEOUT', taskId: r.taskId };
   stats.calls++;
   stats.ms += Date.now() - t0;
   if (r && r.errorId) {
     stats.errors++;
-    const ks = keyStateFrom(r.errorCode);
-    if (ks) await setKeyState({ state: ks, code: r.errorCode, tail: cfg.apiKey.slice(-6) });
+    const reason = refine(r.errorCode, r.errorDescription);
+    // the API's own "what to do", for the errors where it is written for the person (not for a developer)
+    const forPerson = USER_FIX.test(String(r.errorCode || '')) && reason === String(r.errorCode).toLowerCase();
+    s.error = { code: String(r.errorCode || ''), reason, fix: forPerson && typeof r.fix === 'string' ? r.fix.slice(0, 240) : undefined,
+      charged: typeof r.charged === 'boolean' ? r.charged : undefined };
+    const ks = keyStateFrom(r);
+    if (ks) await setKeyState({ state: ks, code: r.errorCode, tail: cfg.apiKey.slice(-6), fix: s.error.fix });
+  } else if (r) {
+    // what this answer cost (the API says; nothing is guessed) and its id, for the "that was wrong" report
+    const c = r.cost;
+    if (c && typeof c === 'object' && c.charged && Number(c.amount) > 0) {
+      s.cost += Number(c.amount);
+      s.unit = String(c.unit || 'credits');
+    }
+    if (c && typeof c === 'object') s.costKnown = true;
+    if (typeof r.taskId === 'string' && r.taskId) s.taskIds.push(r.taskId);
   }
   return r;
 }
 
-const stats = { calls: 0, errors: 0, ms: 0, trustedGestures: 0, trustedKeys: 0 };
-(globalThis as any).__browsaCaptchaStats = stats;          // read by the harness (diagnostics only)
+/** "That was wrong": tells the API the last answer of this solve was refused by the site. The API decides about a
+ * refund (once, within its limits); the row keeps what it answered. */
+async function reportWrong(at: number) {
+  const cfg = await load();
+  const got = await chrome.storage.local.get('log');
+  const row = ((got.log as LogRow[]) || []).find((x) => x.at === at);
+  if (!row || !row.taskId || row.reported) return { ok: false, reason: 'no_task' };
+  const r = await api(cfg, 'reportIncorrect', { taskId: row.taskId });
+  const fresh = (((await chrome.storage.local.get('log')).log as LogRow[]) || []).slice();
+  const j = fresh.findIndex((x) => x.at === at);
+  if (j < 0) return { ok: false, reason: 'no_task' };
+  if (r && !r.errorId) {
+    const amount = r.refunded && r.refund && Number(r.refund.amount) > 0 ? Number(r.refund.amount) : 0;
+    fresh[j] = { ...fresh[j], reported: 'sent', refunded: amount || undefined, refundUnit: amount ? String(r.refund.unit || 'credits') : undefined,
+      reportNote: typeof r.message === 'string' ? r.message.slice(0, 200) : undefined, reportFix: undefined };
+  } else {
+    const code = String(r?.errorCode || 'NETWORK_ERROR');
+    // an answer that cannot be reported any more is final; a network error can be tried again
+    const final = /^ERROR_(ALREADY_REPORTED|REPORT_TOO_LATE|REPORT_NOT_SOLVED|REPORT_LIMIT|TASKID_INVALID)$/.test(code);
+    fresh[j] = { ...fresh[j], reported: final ? 'refused' : undefined, reportNote: refine(code, r?.errorDescription),
+      reportFix: typeof r?.fix === 'string' ? r.fix.slice(0, 200) : undefined };
+  }
+  await chrome.storage.local.set({ log: fresh });
+  if (r && !r.errorId) void balance();
+  return { ok: !!(r && !r.errorId), row: fresh[j] };
+}
+
+// Counters for the measuring harness (diagnostics only; session storage, gone when the browser closes): API calls
+// started and ended (a call that started and never ended was cut off), and how many ran into the timeout.
+const stats = { calls: 0, errors: 0, ms: 0, trustedGestures: 0, trustedKeys: 0, started: 0, ended: 0, timeouts: 0 };
+(globalThis as any).__browsaCaptchaStats = stats;
+function saveStats() { ((chrome.storage as any).session as chrome.storage.StorageArea | undefined)?.set({ stats: { ...stats } }).catch(() => undefined); }
 
 // ---------------------------------------------------------------- pictures
 
@@ -137,10 +226,10 @@ function b64(buf: ArrayBuffer): string {
   return btoa(s);
 }
 
-async function fetchImage(url: string) {
+async function fetchImage(url: string, kind: Kind) {
   let u: URL;
   try { u = new URL(url); } catch { return { ok: false, error: 'bad url' }; }
-  if (u.protocol !== 'https:' || !IMAGE_HOSTS.test(u.hostname)) return { ok: false, error: 'host not allowed' };
+  if (!fileAllowed(kind, u.href)) return { ok: false, error: 'host not allowed' };
   try {
     const r = await fetch(u.href, { credentials: 'omit', cache: 'force-cache' });
     if (!r.ok) return { ok: false, error: 'http ' + r.status };
@@ -247,11 +336,20 @@ async function trustedKeys(sender: chrome.runtime.MessageSender, keys: string[],
 
 // ---------------------------------------------------------------- solves, the log, the badge
 
-interface Session { start: number; host: string; rounds: number; why: string; charged: boolean; navigated?: boolean }
+interface Session {
+  start: number; host: string; rounds: number; why: string; charged: boolean; navigated?: boolean;
+  cost: number; unit: string; costKnown: boolean; taskIds: string[];
+  error?: { code: string; reason: string; fix?: string; charged?: boolean };
+}
 const sessions = new Map<string, Session>();
 
 export interface LogRow {
   at: number; host: string; kind: Kind | string; verdict: string; seconds: number; rounds: number; reason?: string; label?: string;
+  cost?: number; unit?: string;       // what the API charged for this solve (absent: the API did not say)
+  taskId?: string;                    // the last answer's id: what "that was wrong" reports
+  fix?: string;                       // the API's own "what to do" for an error
+  reported?: 'sent' | 'refused';      // the report went through / can no longer be made
+  refunded?: number; refundUnit?: string; reportNote?: string; reportFix?: string;
 }
 
 async function logRow(row: LogRow) {
@@ -278,7 +376,7 @@ function signalTop(tabId: number, state: string, kind: string, reason = '') {
 }
 
 // Refusals that are worth a line in the popup even when nobody pressed Solve (with the one-a-minute rule above).
-const LOG_AUTO_REFUSALS = new Set(['no_key', 'ask_site', 'page_limit', 'site_limit', 'unverified', 'error_key_denied_access']);
+const LOG_AUTO_REFUSALS = new Set(['no_key', 'ask_site', 'page_limit', 'site_limit', 'unverified', 'error_key_denied_access', 'trial_used']);
 
 async function begin(sender: chrome.runtime.MessageSender, kind: Kind, why: 'auto' | 'button', verified: boolean, sig: string) {
   await guardReady;
@@ -295,11 +393,16 @@ async function begin(sender: chrome.runtime.MessageSender, kind: Kind, why: 'aut
   // a provider widget is checked by the address of the frame that asks, which the browser reports and a page cannot
   // forge; a page-level widget (GeeTest, AWS WAF) by its scripts' hosts, checked in the content script
   const frameOk = providerFrame(kind, sender.url || '');
-  let d: { ok: boolean; reason?: string; answer?: string } = guard.decide(cfg, { kind, why, host, tabId, verified: frameOk === null ? verified : frameOk, sig });
+  let d: { ok: boolean; reason?: string; answer?: string } = why === 'auto' && !autoOn(cfg, kind)
+    ? { ok: false, reason: 'auto_off' }
+    : guard.decide(cfg, { kind, why, host, tabId, verified: frameOk === null ? verified : frameOk, sig });
   if (d.ok && cfg.apiKey && KIND_INFO[kind].credits) {
     // a key the API already refused is not sent again until it changes (the panel shows the fix)
     const ks = (await chrome.storage.local.get('keyState')).keyState as KeyState | undefined;
-    if (ks && ks.state === 'refused' && ks.tail === cfg.apiKey.slice(-6)) d = { ok: false, reason: 'error_key_denied_access' };
+    if (ks && ks.tail === cfg.apiKey.slice(-6)) {
+      if (ks.state === 'refused') d = { ok: false, reason: 'error_key_denied_access' };
+      else if (ks.state === 'trial_used') d = { ok: false, reason: 'trial_used' };
+    }
   }
   if (!d.ok) {
     if (why === 'button' || LOG_AUTO_REFUSALS.has(d.reason || 'failed')) {
@@ -308,7 +411,7 @@ async function begin(sender: chrome.runtime.MessageSender, kind: Kind, why: 'aut
     signalTop(tabId, verdictFor(d.reason || 'failed'), kind, d.reason || 'failed');
     return d;
   }
-  sessions.set(key, { start: Date.now(), host, rounds: 0, why, charged: false });
+  sessions.set(key, { start: Date.now(), host, rounds: 0, why, charged: false, cost: 0, unit: 'credits', costKnown: false, taskIds: [] });
   signalTop(tabId, 'solving', kind);
   return d;
 }
@@ -322,15 +425,29 @@ async function onReport(sender: chrome.runtime.MessageSender, kind: Kind, event:
     if (s) s.rounds = Math.max(s.rounds + 1, Number(data.n) || 0);
     return;
   }
+  // a solve that only opened a widget whose puzzle belongs to another type (GeeTest v4): that type's solve takes
+  // over; this one ends with no line of its own (it made no API call)
+  if (event === 'handoff') {
+    if (s && !s.charged) sessions.delete(key);
+    return;
+  }
   if (event === 'end') {
     sessions.delete(key);
     const secs = Number(data.seconds) > 0 ? Number(data.seconds) : s ? (Date.now() - s.start) / 1000 : 0;
     let verdict = String(data.verdict || 'failed');
-    const reason = data.reason && data.reason !== 'solved' ? String(data.reason).toLowerCase() : undefined;
+    let reason = data.reason && data.reason !== 'solved' ? String(data.reason).toLowerCase() : undefined;
+    // the API's own error behind this end: its finer reason (trial used up, site not served) and its "what to do"
+    const err = s && s.error && reason === s.error.code.toLowerCase() ? s.error : undefined;
+    if (err) reason = err.reason;
     if (verdict === 'failed' && reason) verdict = verdictFor(reason);
     const row: LogRow = { at: Date.now(), host: (s && s.host) || host, kind, verdict,
       seconds: Math.round(secs * 10) / 10, rounds: Number(data.rounds) || (s ? s.rounds : 0), reason };
+    if (s && s.costKnown) { row.cost = Math.round(s.cost * 1000) / 1000; row.unit = s.unit; }
+    if (s && s.taskIds.length) row.taskId = s.taskIds[s.taskIds.length - 1];
+    if (err && err.fix) row.fix = err.fix;
+    if (err && err.charged === false && row.cost === undefined) { row.cost = 0; row.unit = s ? s.unit : 'credits'; }   // the API said: not charged
     await logRow(row);
+    if (s && s.cost > 0) void balance();                          // the header shows what is left after a paid solve
     badge(tabId, verdict === 'solved' || verdict === 'typed' ? true : verdict === 'failed' ? false : null);
     signalTop(tabId, verdict, kind, reason);
     if (verdict === 'typed' && tabId >= 0) {
@@ -393,7 +510,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       case 'whereAmI': return { host: hostOf(sender.tab?.url), frameId: sender.frameId, title: sender.tab?.title || '' };
       case 'begin': return begin(sender, m.kind, m.why === 'button' ? 'button' : 'auto', !!m.verified, String(m.sig || ''));
       case 'createTask': return createTask(sender, m.kind, m.task || {});
-      case 'fetchImage': return fetchImage(String(m.url || ''));
+      case 'fetchImage': return fetchImage(String(m.url || ''), (KIND_INFO[m.kind as Kind] ? m.kind : 'geetest') as Kind);
       case 'capture': return capture(sender, m.boxes || [], Number(m.dpr) || 1, String(m.frameUrl || ''));
       // a tab the browser does not draw (hidden, covered) never acknowledges debugger input: give up, the page's
       // own events are used instead
@@ -433,6 +550,16 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         return { pending: !!(s && s.navigated), rounds: s ? s.rounds : 0 };
       }
       case 'balance': return balance();
+      case 'reportWrong': return reportWrong(Number(m.at));
+      case 'offer':                             // a captcha waits for a click: the top frame shows the Solve button
+        if (tabId >= 0) chrome.tabs.sendMessage(tabId, { cmd: 'offer', offer: { kind: m.kind, pos: m.pos, frameUrl: sender.url || '', box: null } }, { frameId: 0 }).catch(() => undefined);
+        return { ok: true };
+      case 'customText': return editHosts(sender.tab?.url, (c, h) => {
+        const cu = m.custom as CustomText;
+        return { custom: { ...c.custom, [h]: { img: String(cu?.img || ''), input: String(cu?.input || '') } },
+          textSites: [...c.textSites, h], textNo: c.textNo.filter((x) => x !== h) };
+      });
+      case 'openOptions': void chrome.runtime.openOptionsPage(); return { ok: true };
       case 'stats': return { ...stats };
       default: return { ok: false, error: 'unknown' };
     }
@@ -474,4 +601,23 @@ chrome.storage.onChanged.addListener((ch, area) => {
   if (area !== 'local' || !ch.config) return;
   const a = (ch.config.oldValue as Config | undefined)?.apiKey, b = (ch.config.newValue as Config | undefined)?.apiKey;
   if (a !== b) void balance();
+});
+
+// ---------------------------------------------------------------- right-click: "this picture is a captcha"
+
+// For a picture captcha the detector does not recognise: the person points at the picture, then at its answer
+// field. Both are remembered for the site (as CSS selectors, in the settings) and solved like any picture captcha.
+function menus() {
+  const cm = chrome.contextMenus;
+  if (!cm) return;
+  cm.removeAll(() => {
+    cm.create({ id: 'mark-image', title: t('menu_mark_image'), contexts: ['image'] });
+    cm.create({ id: 'mark-input', title: t('menu_mark_input'), contexts: ['editable'] });
+  });
+}
+chrome.runtime.onStartup?.addListener(menus);
+chrome.contextMenus?.onClicked.addListener((info, tab) => {
+  if (tab?.id === undefined) return;
+  const cmd = info.menuItemId === 'mark-image' ? 'markImage' : info.menuItemId === 'mark-input' ? 'markInput' : '';
+  if (cmd) chrome.tabs.sendMessage(tab.id, { cmd }, { frameId: info.frameId || 0 }).catch(() => undefined);
 });

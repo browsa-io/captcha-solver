@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Verify</title>
+<style>body{font:15px system-ui,sans-serif;margin:32px;max-width:640px}input,button{font:inherit;padding:6px 8px;margin:4px 0}</style></head>
+<body>
+<form id="f"><img id="pic" width="140" height="48"><br>
+<input type="text" id="captcha_code" name="captcha_code">
+<button type="submit">Check</button></form><pre id="out"></pre>
+<script>fetch("/captcha.png").then(r=>r.blob()).then(b=>{const fr=new FileReader();fr.onload=()=>{document.getElementById("pic").src=fr.result};fr.readAsDataURL(b)});</script>
+<script>
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('/check', { method: 'POST', body: new FormData(e.target).get('captcha_code') || '' });
+  document.getElementById('out').textContent = await r.text();
+});
+</script>
+</body></html>

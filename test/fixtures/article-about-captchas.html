@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>How CAPTCHAs work</title>
+<style>body{font:15px system-ui,sans-serif;margin:32px;max-width:640px}input,button{font:inherit;padding:6px 8px;margin:4px 0}</style></head>
+<body>
+<h1>How CAPTCHAs work</h1>
+<p>A CAPTCHA asks you to type the characters in a picture. reCAPTCHA, hCaptcha, GeeTest and Cloudflare Turnstile are common ones; ALTCHA is a newer proof-of-work captcha.</p>
+<figure><img src="/logo.png" alt="Diagram of a captcha being solved" width="320" height="180"><figcaption>A captcha picture and its answer field.</figcaption></figure>
+<form role="search"><input type="search" name="q" placeholder="Search articles"><button>Search</button></form>
+<form><input type="text" name="name" placeholder="Your name"><textarea name="comment"></textarea><button>Comment</button></form>
+<pre><code>&lt;div class="g-recaptcha" data-sitekey="..."&gt;&lt;/div&gt;
+&lt;div class="cf-turnstile"&gt;&lt;/div&gt;</code></pre>
+</body></html>

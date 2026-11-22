@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Browsa Solver</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body class="options">
+  <header class="top">
+    <img src="icons/icon-48.png" alt="" width="24" height="24">
+    <h1 class="name" data-i18n="options_title"></h1>
+    <span class="bal" id="saved" role="status" aria-live="polite"></span>
+  </header>
+
+  <main>
+    <section aria-labelledby="h-types">
+      <h2 id="h-types" data-i18n="o_types"></h2>
+      <p class="hint" data-i18n="o_types_hint"></p>
+      <table class="grid" id="typeTable">
+        <thead><tr><th scope="col" data-i18n="o_col_type"></th><th scope="col" data-i18n="o_col_solve"></th><th scope="col" data-i18n="o_col_auto"></th><th scope="col" data-i18n="o_col_cost"></th></tr></thead>
+        <tbody id="typeRows"></tbody>
+      </table>
+      <details id="moreTypes">
+        <summary data-i18n="o_unlisted"></summary>
+        <p class="hint" data-i18n="o_unlisted_hint"></p>
+        <table class="grid"><tbody id="unlistedRows"></tbody></table>
+      </details>
+    </section>
+
+    <section aria-labelledby="h-fail">
+      <h2 id="h-fail" data-i18n="o_fail"></h2>
+      <div class="pair">
+        <label class="field"><span data-i18n="o_retries"></span><input id="retries" type="number" min="0" max="3" step="1" inputmode="numeric"></label>
+        <label class="field"><span data-i18n="o_retry_delay"></span><input id="retryDelay" type="number" min="1" max="60" step="1" inputmode="numeric"></label>
+      </div>
+      <p class="hint" data-i18n="o_fail_hint"></p>
+    </section>
+
+    <section aria-labelledby="h-button">
+      <h2 id="h-button" data-i18n="o_button"></h2>
+      <label class="field"><span data-i18n="o_button_pos"></span>
+        <select id="button">
+          <option value="beside" data-i18n="pos_beside"></option>
+          <option value="top-right" data-i18n="pos_top_right"></option>
+          <option value="bottom-right" data-i18n="pos_bottom_right"></option>
+          <option value="bottom-left" data-i18n="pos_bottom_left"></option>
+          <option value="off" data-i18n="pos_off"></option>
+        </select>
+      </label>
+      <p class="hint" data-i18n="o_button_hint"></p>
+    </section>
+
+    <section aria-labelledby="h-sites">
+      <h2 id="h-sites" data-i18n="o_sites"></h2>
+      <fieldset class="radios">
+        <legend class="sr" data-i18n="o_sites"></legend>
+        <label class="mini"><input type="radio" name="siteMode" value="all"><span data-i18n="o_mode_all"></span></label>
+        <label class="mini"><input type="radio" name="siteMode" value="allow"><span data-i18n="o_mode_allow"></span></label>
+      </fieldset>
+      <label class="field" id="skipField"><span data-i18n="o_skip"></span><textarea id="skip" rows="3" spellcheck="false" data-i18n-placeholder="ph_hosts"></textarea></label>
+      <label class="field" id="onlyField"><span data-i18n="o_only"></span><textarea id="only" rows="3" spellcheck="false" data-i18n-placeholder="ph_hosts"></textarea></label>
+      <label class="field"><span data-i18n="o_text_sites"></span><textarea id="textSites" rows="3" spellcheck="false" data-i18n-placeholder="ph_hosts"></textarea></label>
+      <h3 data-i18n="o_custom"></h3>
+      <p class="hint" data-i18n="o_custom_hint"></p>
+      <ul class="custom" id="custom"></ul>
+    </section>
+
+    <section aria-labelledby="h-input">
+      <h2 id="h-input" data-i18n="o_input"></h2>
+      <label class="mini" id="trustedRow"><input type="checkbox" id="trustedInput"><span data-i18n="o_trusted"></span></label>
+      <p class="hint" id="trustedNote"></p>
+      <label class="mini"><input type="checkbox" id="submitText"><span data-i18n="o_submit_text"></span></label>
+    </section>
+
+    <section aria-labelledby="h-server">
+      <h2 id="h-server" data-i18n="o_server"></h2>
+      <label class="field"><span data-i18n="o_server_label"></span><input id="apiBase" type="url" spellcheck="false" aria-describedby="apiBaseMsg"></label>
+      <p class="fieldmsg" id="apiBaseMsg" role="status" hidden></p>
+    </section>
+
+    <section aria-labelledby="h-backup">
+      <h2 id="h-backup" data-i18n="o_backup"></h2>
+      <div class="row wrap">
+        <button type="button" class="ghost" id="export" data-i18n="a_export"></button>
+        <button type="button" class="ghost" id="import" data-i18n="a_import"></button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <label class="mini"><input type="checkbox" id="exportKey"><span data-i18n="o_export_key"></span></label>
+      </div>
+      <p class="hint" id="backupMsg" role="status" aria-live="polite" data-i18n="o_backup_hint"></p>
+    </section>
+
+    <section aria-labelledby="h-perm">
+      <h2 id="h-perm" data-i18n="o_perm"></h2>
+      <table class="grid perm">
+        <tbody>
+          <tr><th scope="row" data-i18n="perm_sites"></th><td data-i18n="perm_sites_why"></td></tr>
+          <tr><th scope="row" data-i18n="perm_storage"></th><td data-i18n="perm_storage_why"></td></tr>
+          <tr><th scope="row" data-i18n="perm_menus"></th><td data-i18n="perm_menus_why"></td></tr>
+          <tr id="permDebugger"><th scope="row" data-i18n="perm_debugger"></th><td data-i18n="perm_debugger_why"></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="foot">
+      <a class="privacy" href="privacy.html" target="_blank" data-i18n="a_privacy"></a>
+      <a class="privacy" href="https://browsa.io/extension" target="_blank" rel="noopener" data-i18n="a_help"></a>
+      <a class="privacy" href="https://github.com/browsa-io/captcha-solver" target="_blank" rel="noopener" data-i18n="a_source"></a>
+      <span id="version"></span>
+    </footer>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>

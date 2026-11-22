@@ -7,7 +7,7 @@ import { load } from './load.mjs';
 const G = await load('src/lib/guard.ts');
 const C = await load('src/lib/config.ts');
 
-const cfg = (over = {}) => C.merge(C.DEFAULTS, { apiKey: 'agt_live_x', ...over });
+const cfg = (over = {}) => C.merge(C.DEFAULTS, { apiKey: 'agt_live_x', types: { text: true }, ...over });   // picture text switched on
 const clock = () => { let t = 1_000_000; const f = () => t; f.add = (ms) => { t += ms; }; return f; };
 const ask = (o) => ({ kind: 'recaptcha', why: 'auto', host: 'shop.example', tabId: 7, verified: true, ...o });
 

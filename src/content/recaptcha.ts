@@ -6,7 +6,7 @@
 // request to Google, nothing from the page around the widget.
 import type { Ctx } from './main';
 import { canvasData, report, solveTask } from '../lib/msg';
-import { click, idle, sleep, visible } from '../lib/input';
+import { click, idle, pressEnter, sleep, typeInto, visible } from '../lib/input';
 
 const ANCHOR = /\/recaptcha\/(api2|enterprise)\/anchor/;
 const BFRAME = /\/recaptcha\/(api2|enterprise)\/bframe/;
@@ -18,6 +18,11 @@ const MAX_ROUNDS = 16;
 const DYN_MAX_CLICKS = 24;
 const DYN_TILE_WAIT_S = 7;
 const NO_GRID_S = 15;
+// The audio fallback ('rcaudio', its own switch): after this many picture rounds without a pass, or a picture the
+// service does not know, Google's audio challenge is asked for and its clip read by AudioTask (as the engine does,
+// CAPTCHA_AUDIO_AFTER_ROUNDS). At most AUDIO_MAX_ROUNDS clips per solve.
+const AUDIO_AFTER = 3;
+const AUDIO_MAX_ROUNDS = 4;
 
 // ---------------------------------------------------------------- anchor
 
@@ -80,7 +85,7 @@ export async function runAnchor(ctx: Ctx) {
 interface Tile { td: HTMLElement; img: HTMLImageElement | null; selected: boolean; loading: boolean; src: string }
 interface Puzzle {
   refused: string; target: string; desc: string; grid: number; dynamic: boolean; single: boolean;
-  tiles: Tile[]; errors: string[]; payload: string; audio: boolean;
+  tiles: Tile[]; errors: string[]; payload: string; audio: boolean; audioSrc: string; audioError: string;
 }
 
 const text = (el: Element | null) => (el?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -88,7 +93,7 @@ const shown = (el: Element) => (el as HTMLElement).style.display !== 'none' && v
 
 export function parsePuzzle(doc: Document = document): Puzzle {
   const pz: Puzzle = { refused: '', target: '', desc: '', grid: 0, dynamic: false, single: false, tiles: [], errors: [],
-    payload: '', audio: false };
+    payload: '', audio: false, audioSrc: '', audioError: '' };
   const dos = doc.querySelector('.rc-doscaptcha-header-text, .rc-doscaptcha-body-text');
   if (dos && visible(dos)) {
     pz.refused = text(dos) || 'refused';
@@ -111,7 +116,13 @@ export function parsePuzzle(doc: Document = document): Puzzle {
   if (pz.tiles.length && !pz.grid) pz.grid = pz.tiles.length;
   // other languages than English: a replaced tile (100 px picture) or one fading out also says "reloading"
   if (doc.querySelector('img.rc-image-tile-11, td.rc-imageselect-dynamic-selected')) pz.dynamic = true;
-  if (!pz.tiles.length && doc.querySelector('#audio-response, .rc-audiochallenge-play-button')) pz.audio = true;
+  if (!pz.tiles.length && doc.querySelector('#audio-response, .rc-audiochallenge-play-button')) {
+    pz.audio = true;
+    pz.audioSrc = doc.querySelector<HTMLAudioElement>('#audio-source')?.src
+      || doc.querySelector<HTMLAnchorElement>('.rc-audiochallenge-tdownload-link')?.href || '';
+    const err = Array.from(doc.querySelectorAll('.rc-audiochallenge-error-message')).find((n) => shown(n));
+    pz.audioError = err ? text(err) : '';
+  }
   pz.payload = pz.tiles.length ? pz.tiles[0].src.slice(-48) : '';
   for (const [cls, name] of [['rc-imageselect-incorrect-response', 'try_again'], ['rc-imageselect-error-select-more', 'select_more'],
     ['rc-imageselect-error-dynamic-more', 'check_new'], ['rc-imageselect-error-select-something', 'select_something']]) {
@@ -120,7 +131,10 @@ export function parsePuzzle(doc: Document = document): Puzzle {
   return pz;
 }
 
+let rc: Ctx | null = null;
+
 export async function runBframe(ctx: Ctx) {
+  rc = ctx;
   let open = false;
   let closedAt = 0;
   new IntersectionObserver((es) => {
@@ -145,8 +159,13 @@ export async function runBframe(ctx: Ctx) {
     try {
       const may = await ctx.start('recaptcha', why, { verified: true });
       if (!may.ok) return;
-      const r = await solveRounds(() => ({ open, closedAt, anchor }));
+      const r = await solveRounds(() => ({ open, closedAt, anchor }), why);
       const seconds = (performance.now() - t0) / 1000;
+      if (r.audioAt) {
+        // the audio fallback's own line: solved when the widget passed after its clips
+        ctx.end('rcaudio', r.reason === 'solved' ? 'solved' : 'failed', { reason: r.reason, rounds: r.audio,
+          seconds: (performance.now() - r.audioAt) / 1000 });
+      }
       if (r.reason !== 'solved') ctx.end('recaptcha', 'failed', { reason: r.reason, rounds: r.rounds, seconds });
       else if (anchor === 'invisible' || anchor === 'unknown') ctx.end('recaptcha', 'solved', { rounds: r.rounds, seconds });
     } finally {
@@ -188,10 +207,16 @@ async function picture(pz: Puzzle): Promise<string | null> {
   }
 }
 
+// The API's last refusal in this frame (lower case), so the solve ends with the real reason (out of credits, the
+// key's limit, free solves used up) instead of a general failure, and stops asking at once when asking again cannot help.
+let apiError = '';
+const PASSING = new Set(['error_service_unavaliable', 'network_error', 'error_rate_limit', 'error_task_timeout', 'extension_error', 'offline']);
+
 async function classify(pz: Puzzle, escalate: boolean): Promise<number[] | null> {
   const image = await picture(pz);
   if (!image) return null;
   const r = await solveTask('recaptcha', { type: 'ReCaptchaV2Classification', image, question: pz.target, escalate });
+  apiError = r.errorId && r.errorCode !== 'ERROR_CAPTCHA_UNSOLVABLE' ? String(r.errorCode || 'api_error').toLowerCase() : '';
   if (r.errorId) return r.errorCode === 'ERROR_CAPTCHA_UNSOLVABLE' ? [] : null;
   return ((r.solution?.objects || []) as number[]).map((o) => o + 1).filter((i) => i >= 1 && i <= pz.tiles.length);
 }
@@ -200,13 +225,58 @@ async function tileHas(img: HTMLImageElement, target: string, escalate: boolean)
   const image = await canvasData(img, 'image/jpeg', 0.92);
   if (!image) return false;
   const r = await solveTask('recaptcha', { type: 'ReCaptchaV2Classification', image, question: target, size: 1, escalate });
+  if (r.errorId && r.errorCode !== 'ERROR_CAPTCHA_UNSOLVABLE') apiError = String(r.errorCode || 'api_error').toLowerCase();
   return !r.errorId && !!r.solution?.hasObject;
 }
 
-async function solveRounds(state: () => State): Promise<{ reason: string; rounds: number }> {
+interface Rounds { reason: string; rounds: number; audio: number; audioAt: number }
+
+function b64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+/** Google's clip, fetched from this frame (Google's own origin, its own cookies): the same request the player
+ * makes. In Firefox the page's own fetch, so the request is the page's and not the add-on's. */
+async function clip(url: string): Promise<string | null> {
+  try {
+    const f: typeof fetch = (globalThis as any).content?.fetch?.bind((globalThis as any).content) || fetch;
+    const r = await f(url, { credentials: 'include' });
+    if (!r.ok) return null;
+    const buf = await r.arrayBuffer();
+    return buf.byteLength > 100 ? b64(buf) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function solveRounds(state: () => State, why: 'auto' | 'button' = 'auto'): Promise<Rounds> {
   const t0 = performance.now();
   const elapsed = () => (performance.now() - t0) / 1000;
+  const out = (reason: string): Rounds => ({ reason, rounds, audio: audioRounds, audioAt });
   let rounds = 0;
+  // the audio fallback
+  let audioMode = false;
+  let audioRounds = 0;
+  let audioAt = 0;
+  let lastClip = '';
+  let clipAt = 0;
+  const audioOn = () => !!rc && rc.gate('rcaudio') === '';
+  const toAudio = async (): Promise<boolean> => {
+    const btn = document.querySelector('#recaptcha-audio-button');
+    if (!rc || !btn || !visible(btn)) return false;
+    const may = await rc.start('rcaudio', why, { verified: true });
+    if (!may.ok) return false;
+    audioMode = true;
+    audioAt = performance.now();
+    report('rcaudio', 'round', { n: 0, from: rounds });
+    await idle(0.5, 1.1);
+    await click(btn);
+    await idle(1.2, 2.0);
+    return true;
+  };
   let lastPayload = '';
   let same = 0;
   let audioSwitches = 0;
@@ -214,16 +284,47 @@ async function solveRounds(state: () => State): Promise<{ reason: string; rounds
   await idle(1.0, 1.6);                                    // let the pop-up finish opening
   while (elapsed() < BUDGET_S && rounds < MAX_ROUNDS) {
     const st = state();
-    if (st.anchor === 'checked') return { reason: 'solved', rounds };
+    if (st.anchor === 'checked') return out('solved');
     if (!st.open) {
       if (performance.now() - st.closedAt < 1500) { await sleep(0.4); continue; }
       // the pop-up closed: for an invisible widget that is the pass; with a checkbox, its tick says
       await sleep(1.2);
       const a = state().anchor;
-      return { reason: a === 'checked' || a === 'invisible' || a === 'unknown' ? 'solved' : 'closed', rounds };
+      return out(a === 'checked' || a === 'invisible' || a === 'unknown' ? 'solved' : 'closed');
     }
     const pz = parsePuzzle();
-    if (pz.refused) return { reason: 'refused', rounds };
+    if (pz.refused) return out('refused');
+    if (pz.audio && audioMode) {
+      // one clip: fetched here, read by AudioTask, typed, Verify (Enter when the button is out of view)
+      const input = document.querySelector<HTMLInputElement>('#audio-response');
+      if (!pz.audioSrc || !input) { await sleep(0.6); continue; }
+      if (pz.audioSrc === lastClip && performance.now() - clipAt < 10_000) { await sleep(0.8); continue; }
+      if (audioRounds >= AUDIO_MAX_ROUNDS) return out('audio_rounds');
+      lastClip = pz.audioSrc;
+      clipAt = performance.now();
+      audioRounds++;
+      report('rcaudio', 'round', { n: audioRounds, error: pz.audioError });
+      const body = await clip(pz.audioSrc);
+      if (!body) return out('audio_fetch');
+      const r = await solveTask('rcaudio', { type: 'AudioTask', body });
+      if (r.errorId) {
+        if (r.errorCode !== 'ERROR_CAPTCHA_UNSOLVABLE') return out(String(r.errorCode || 'api_error').toLowerCase());
+        const reload = document.querySelector('#recaptcha-reload-button');       // a new clip, like a person who could not make it out
+        if (reload && visible(reload)) { await idle(0.5, 1.0); await click(reload); }
+        continue;
+      }
+      const answer = String(r.solution?.text || '').trim();
+      if (!answer) continue;
+      input.value = '';
+      await typeInto(input, answer);
+      await idle(0.4, 0.9);
+      const verify = document.querySelector<HTMLElement>('#recaptcha-verify-button');
+      const vr = verify?.getBoundingClientRect();
+      if (verify && vr && visible(verify) && vr.bottom <= window.innerHeight && vr.right <= window.innerWidth) await click(verify);
+      else await pressEnter(input);
+      await idle(1.2, 1.8);
+      continue;
+    }
     if (pz.audio) {
       const b = document.querySelector('#recaptcha-image-button');
       if (b && audioSwitches < 2) {
@@ -233,10 +334,10 @@ async function solveRounds(state: () => State): Promise<{ reason: string; rounds
         await idle(1.2, 1.8);
         continue;
       }
-      return { reason: 'audio_challenge', rounds };
+      return out('audio_challenge');
     }
     if (!pz.tiles.length || pz.tiles.some((t) => t.loading || !t.img?.complete)) {
-      if (!pz.tiles.length && performance.now() - lastGrid > NO_GRID_S * 1000) return { reason: 'no_grid', rounds };
+      if (!pz.tiles.length && performance.now() - lastGrid > NO_GRID_S * 1000) return out('no_grid');
       await sleep(0.6);
       continue;
     }
@@ -247,13 +348,19 @@ async function solveRounds(state: () => State): Promise<{ reason: string; rounds
     }
     lastPayload = pz.payload;
     same = 0;
+    // the pictures keep failing (or the harness asks for audio from the start): Google's audio challenge instead
+    if (!audioMode && audioOn() && ((rc && rc.cfg.audioFirst) || rounds >= AUDIO_AFTER) && await toAudio()) continue;
     rounds++;
     const escalate = pz.errors.length > 0 || rounds >= 3;       // the engine's switch to the stronger model
     report('recaptcha', 'round', { n: rounds, grid: pz.grid, dynamic: pz.dynamic });
     const picked = await classify(pz, escalate);
     if (picked === null) {
+      // a refusal that asking again cannot change (the key, the credits, a limit, the type switched off): stop now
+      // a picture the service does not know: the audio challenge, when that is switched on
+      if (apiError === 'error_unknown_question' && !audioMode && audioOn() && await toAudio()) continue;
+      if (apiError && !PASSING.has(apiError)) return out(apiError);
       await sleep(1.0);
-      if (rounds >= 3 && elapsed() > 30) return { reason: 'api_error', rounds };
+      if (rounds >= 3 && elapsed() > 30) return out(apiError || 'api_error');
       continue;
     }
     if (pz.dynamic) {
@@ -282,7 +389,7 @@ async function solveRounds(state: () => State): Promise<{ reason: string; rounds
     if (verify && visible(verify)) await click(verify);
     await idle(0.9, 1.4);
   }
-  return { reason: rounds >= MAX_ROUNDS ? 'rounds' : 'timeout', rounds };
+  return out(rounds >= MAX_ROUNDS ? 'rounds' : 'timeout');
 }
 
 /** Reloading tiles as a pipeline (as the server-side solver does it): each clicked tile is watched on its own; when its new

@@ -39,12 +39,13 @@ await esbuild.build({
     background: path.join(root, 'src/background.ts'),
     content: path.join(root, 'src/content/main.ts'),
     popup: path.join(root, 'src/popup/popup.ts'),
+    options: path.join(root, 'src/options/options.ts'),
   },
   outdir: out,
   absWorkingDir: root,        // module comments in the bundle name paths from here, whatever the shell's folder
   bundle: true,
   format: 'iife',
-  target: browser === 'firefox' ? ['firefox121'] : ['chrome116'],
+  target: browser === 'firefox' ? ['firefox140'] : ['chrome116'],
   minify: false,              // readable code helps store review; nothing secret is in it
   sourcemap: false,
   legalComments: 'none',
@@ -55,6 +56,9 @@ await esbuild.build({
 const copy = (from, to = from) => fs.cpSync(path.join(root, from), path.join(out, to), { recursive: true });
 copy('src/popup/popup.html', 'popup.html');
 copy('src/popup/popup.css', 'popup.css');
+copy('src/options/options.html', 'options.html');
+copy('src/options/options.css', 'options.css');
+copy('src/_locales', '_locales');
 copy('static/icons', 'icons');
 copy('static/fonts', 'fonts');
 copy('static/privacy.html', 'privacy.html');
@@ -67,13 +71,16 @@ if (automation) {
 const icons = { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png', 48: 'icons/icon-48.png', 128: 'icons/icon-128.png' };
 const manifest = {
   manifest_version: 3,
-  name: 'Browsa Captcha Solver',
-  short_name: 'Browsa Solver',
+  // every text a person reads is in _locales/<lang>/messages.json (English is the default and complete)
+  name: '__MSG_ext_name__',
+  short_name: '__MSG_short_name__',
   version: pkg.version,
+  default_locale: 'en',
   // the store's short description (132 characters at most): store/listing.md
-  description: 'Solves image captchas with human-like input, rates measured on each site\'s own server. Use it only where you are authorized.',
+  description: '__MSG_ext_description__',
   icons,
-  action: { default_popup: 'popup.html', default_icon: icons, default_title: 'Browsa Solver' },
+  action: { default_popup: 'popup.html', default_icon: icons, default_title: '__MSG_short_name__' },
+  options_ui: { page: 'options.html', open_in_tab: true },
   background: browser === 'firefox' ? { scripts: ['background.js'] } : { service_worker: 'background.js' },
   content_scripts: [{
     matches: ['http://*/*', 'https://*/*'],
@@ -81,24 +88,30 @@ const manifest = {
     all_frames: true,
     run_at: 'document_idle',
   }],
-  permissions: ['storage'],
+  // storage: settings, the key, the last 50 solves. contextMenus: the two right-click entries for a picture
+  // captcha the detector missed. Why all sites: README, "Permissions".
+  permissions: ['storage', 'contextMenus'],
   host_permissions: ['<all_urls>'],
-  commands: { solve: { suggested_key: { default: 'Alt+Shift+S' }, description: 'Solve the captcha on this page' } },
+  commands: { solve: { suggested_key: { default: 'Alt+Shift+S' }, description: '__MSG_cmd_solve__' } },
 };
 if (browser === 'firefox') {
   // No chrome.debugger in Firefox: Trusted input and Press & hold are not available there (the popup says so).
-  // 121: the oldest Firefox with everything used here (MV3 event page, storage.session, OffscreenCanvas in the
-  // background, element.openOrClosedShadowRoot, CSS :has() in the panel).
+  // 140: the first Firefox that reads data_collection_permissions (its built-in consent at install); everything
+  // else used here (MV3 event page, storage.session, OffscreenCanvas in the background,
+  // element.openOrClosedShadowRoot, CSS :has() in the panel) is older.
   manifest.browser_specific_settings = { gecko: {
-    id: 'captcha-solver@browsa.io', strict_min_version: '121.0',
+    id: 'captcha-solver@browsa.io', strict_min_version: '140.0',
     // what is sent off the device, declared for Firefox's install prompt and the add-ons site
-    data_collection_permissions: { required: ['authenticationInfo', 'websiteContent'] },
-  } };
-  if (automation) manifest.name += ' (automation)';
+    // (the API key; the captcha's picture; the host name of the site a captcha is solved on)
+    data_collection_permissions: { required: ['authenticationInfo', 'websiteContent', 'browsingActivity'] },
+  },
+  // Firefox for Android reads data_collection_permissions from 142 (the add-on is listed for desktop only)
+  gecko_android: { strict_min_version: '142.0' } };
+  if (automation) manifest.name = 'Browsa Captcha Solver (automation)';
 } else if (automation) {
   // unpacked automation build: trusted input available without a prompt (set trustedInput in the JSON)
   manifest.permissions.push('debugger', 'webNavigation');
-  manifest.name += ' (automation)';
+  manifest.name = 'Browsa Captcha Solver (automation)';
   manifest.minimum_chrome_version = '116';
 } else {
   manifest.optional_permissions = ['debugger', 'webNavigation'];

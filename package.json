@@ -1,6 +1,6 @@
 {
   "name": "browsa-captcha-extension",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "private": true,
   "description": "Browsa Captcha Solver, the browser extension (Manifest V3) for Chrome and Firefox.",
   "license": "MIT",
@@ -17,6 +17,8 @@
     "build:automation": "node scripts/build.mjs --automation=automation.json",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.mjs",
+    "e2e": "node scripts/build.mjs && node --test test/e2e/e2e.test.mjs",
+    "e2e:firefox": "node scripts/build.mjs --target=firefox && BROWSER=firefox node --test test/e2e/e2e.test.mjs",
     "package": "node scripts/package.mjs",
     "package:firefox": "node scripts/package.mjs --target=firefox",
     "hashes": "node scripts/hashes.mjs"
@@ -24,7 +26,9 @@
   "devDependencies": {
     "@types/chrome": "0.0.287",
     "esbuild": "0.24.2",
+    "jsdom": "25.0.1",
     "playwright-core": "1.49.1",
+    "selenium-webdriver": "4.27.0",
     "typescript": "5.7.2"
   }
 }

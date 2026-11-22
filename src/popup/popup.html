@@ -9,68 +9,63 @@
 <body>
   <header class="top">
     <img src="icons/icon-32.png" alt="" width="20" height="20">
-    <span class="name">Browsa Solver</span>
-    <span class="bal" id="balance"></span>
-    <label class="switch" title="Solver on or off"><input type="checkbox" id="enabled" aria-label="Solver on"><span></span></label>
+    <h1 class="name" data-i18n="short_name"></h1>
+    <span class="bal" id="balance" role="status"></span>
+    <label class="switch" data-i18n-title="t_on_off"><input type="checkbox" id="enabled" data-i18n-label="l_solver_on"><span></span></label>
   </header>
 
   <section class="offbar" id="offBar" hidden>
-    <span>The solver is off. Nothing is solved.</span>
-    <button type="button" class="ghost sm" id="turnOn">Turn on</button>
+    <span data-i18n="off_bar"></span>
+    <button type="button" class="ghost sm" id="turnOn" data-i18n="a_turn_on"></button>
   </section>
 
-  <div class="body" id="main">
+  <main class="body" id="main">
     <section class="onboard" id="onboard" hidden>
-      <p>Solving needs a free Browsa API key.</p>
+      <p data-i18n="onboard"></p>
       <div class="row">
-        <a class="primary btn" id="getKey" href="https://app.browsa.io/signup" target="_blank" rel="noopener">Get a free key</a>
-        <button type="button" class="link" id="haveKey">I have a key</button>
+        <a class="primary btn" id="getKey" href="https://app.browsa.io/signup" target="_blank" rel="noopener" data-i18n="a_get_key"></a>
+        <button type="button" class="link" id="haveKey" data-i18n="a_have_key"></button>
       </div>
     </section>
 
     <section class="keybox" id="keyBox" hidden>
-      <p class="keymsg" id="keyMsg" hidden></p>
+      <p class="keymsg" id="keyMsg" role="alert" hidden></p>
       <div class="key" id="keyRow">
-        <input id="apiKey" type="password" placeholder="Paste your Browsa API key" autocomplete="off" spellcheck="false" aria-label="Browsa API key">
-        <button id="saveKey" class="ghost" type="button">Save</button>
+        <input id="apiKey" type="password" autocomplete="off" spellcheck="false" data-i18n-label="l_api_key">
+        <button id="saveKey" class="ghost" type="button" data-i18n="a_save"></button>
       </div>
     </section>
 
     <section class="row">
-      <div class="seg" role="radiogroup" aria-label="Mode">
-        <button type="button" role="radio" data-mode="auto" title="Solve as soon as a captcha shows">Auto</button>
-        <button type="button" role="radio" data-mode="manual" title="Only when you press Solve">Manual</button>
+      <div class="seg" role="radiogroup" data-i18n-label="l_mode">
+        <button type="button" role="radio" data-mode="auto" data-i18n="mode_auto" data-i18n-title="t_mode_auto"></button>
+        <button type="button" role="radio" data-mode="manual" data-i18n="mode_manual" data-i18n-title="t_mode_manual"></button>
       </div>
-      <button id="solve" class="primary" type="button" title="Solve on this page (Alt+Shift+S)">Solve</button>
+      <button id="solve" class="primary" type="button" data-i18n="a_solve"></button>
     </section>
     <p class="status" id="status" role="status" aria-live="polite" hidden></p>
 
-    <section class="types" aria-label="Captcha types" id="types"></section>
+    <fieldset class="types" id="types"><legend class="sr" data-i18n="l_types"></legend></fieldset>
     <p class="hint" id="typeHint" hidden></p>
 
     <section class="site" id="siteRow" hidden>
       <span class="host" id="host"></span>
-      <label class="mini" title="Solve picture-text captchas here without asking"><input type="checkbox" id="textSite"><span>Picture text</span></label>
-      <label class="mini"><input type="checkbox" id="skipSite"><span>Skip site</span></label>
+      <label class="mini" data-i18n-title="t_text_site"><input type="checkbox" id="textSite"><span data-i18n="picture_text"></span></label>
+      <label class="mini"><input type="checkbox" id="skipSite"><span data-i18n="skip_site"></span></label>
     </section>
 
-    <section class="log" aria-label="Recent">
-      <ol id="log"><li class="empty">No solves yet</li></ol>
+    <section class="log" data-i18n-label="l_recent">
+      <ol id="log"></ol>
     </section>
 
-    <details class="more" id="advanced">
-      <summary>Advanced</summary>
-      <label class="mini" id="trustedRow"><input type="checkbox" id="trustedInput"><span>Trusted input</span></label>
-      <p class="hint" id="trustedNote">Real pointer events through the browser's debugger, for sites that refuse page events. The browser shows a bar while it is on.</p>
-      <label class="mini"><input type="checkbox" id="submitText"><span>Press Enter after typing picture text</span></label>
-      <label class="field"><span>Skipped sites</span><textarea id="skip" rows="2" spellcheck="false" placeholder="one host per line"></textarea></label>
-      <label class="field"><span>Picture text solved without asking on</span><textarea id="textSites" rows="2" spellcheck="false" placeholder="one host per line"></textarea></label>
-      <label class="field"><span>Server</span><input id="apiBase" type="url" spellcheck="false" aria-describedby="apiBaseMsg"></label>
-      <p class="fieldmsg" id="apiBaseMsg" role="status" hidden></p>
-      <div class="foot"><a class="privacy" href="privacy.html" target="_blank">Privacy</a><a class="privacy" href="https://browsa.io/extension" target="_blank" rel="noopener">Help</a><span id="version"></span></div>
-    </details>
-  </div>
+    <footer class="foot">
+      <button type="button" class="link" id="openOptions" data-i18n="a_options"></button>
+      <a class="privacy" href="privacy.html" target="_blank" data-i18n="a_privacy"></a>
+      <a class="privacy" href="https://browsa.io/extension" target="_blank" rel="noopener" data-i18n="a_help"></a>
+      <span id="version"></span>
+    </footer>
+  </main>
 
-  <script src="popup.js" type="module"></script>
+  <script src="popup.js"></script>
 </body>
 </html>

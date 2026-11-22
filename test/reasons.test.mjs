@@ -6,6 +6,7 @@ import { load } from './load.mjs';
 const R = await load('src/lib/reasons.ts');
 const O = await load('src/lib/origin.ts');
 const C = await load('src/lib/config.ts');
+const I = await load('src/lib/i18n.ts');
 
 const ALL = ['unsupported', 'error_task_not_supported', 'no_key', 'error_key_denied_access', 'error_zero_balance',
   'error_budget_exceeded', 'error_key_temp_blocked', 'error_rate_limit', 'site_off', 'type_off', 'off', 'needs_trusted',
@@ -44,7 +45,7 @@ test('verdicts: a skipped site or a limit is not a failure', () => {
   assert.equal(R.verdictFor('ask_site'), 'paused');
   assert.equal(R.verdictFor('unsupported'), 'unsupported');
   assert.equal(R.verdictFor('error_key_denied_access'), 'failed');
-  assert.equal(R.VERDICTS.skipped.label, 'Not solved');
+  assert.equal(I.t(R.VERDICTS.skipped.label), 'Not solved');
 });
 
 test('fingerprint: stable, different pictures differ', () => {
@@ -85,8 +86,8 @@ test('config: host lists normalized, server address checked', () => {
   assert.deepEqual(c.textSites, ['a.com']);
   assert.equal(C.apiBaseProblem('https://captcha.browsa.io'), '');
   assert.equal(C.apiBaseProblem('http://127.0.0.1:8080'), '');
-  assert.match(C.apiBaseProblem('http://captcha.browsa.io'), /https/);
-  assert.match(C.apiBaseProblem('captcha.browsa.io'), /web address/);
-  assert.equal(C.KINDS.length, 10);
+  assert.equal(C.apiBaseProblem('http://captcha.browsa.io'), 'server_https');
+  assert.equal(C.apiBaseProblem('captcha.browsa.io'), 'server_not_address');
+  assert.equal(C.KINDS.length, 25);
   for (const k of C.KINDS) assert.equal(typeof C.DEFAULTS.types[k], 'boolean');
 });

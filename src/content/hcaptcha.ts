@@ -1,7 +1,7 @@
 // hCaptcha, in its own frames from hcaptcha.com (the background checks the asking frame's address).
 //   checkbox frame   ticked like a hand; its state (checked) is the pass, shared through the background
 //   challenge frame  the frame as the person sees it (a crop of the visible tab) and its instruction go to
-//                    HCaptchaClassification, which answers clicks and drags in the frame's CSS px; they are played
+//                    HCaptchaTask, which answers clicks and drags in the frame's CSS px; they are played
 //                    like a hand, then hCaptcha's own Next / Verify. An unclear picture or a puzzle family the server
 //                    does not answer is swapped with hCaptcha's own refresh, a few times at most.
 import type { Ctx } from './main';
@@ -14,8 +14,7 @@ const isCheckbox = (u: string) => /frame=checkbox/.test(u);
 
 const BUDGET_S = 150;
 const MAX_ROUNDS = 6;
-const MAX_REFRESH = 4;
-const MOTION = /\b(land(ed|s)?|hop\w*|jump\w*|never)\b/i;
+const MAX_REFRESH = 5;            // as Browsa's cloud browsers: another challenge rather than a guess, 5 times at most
 
 function checkboxState(): string {
   const c = document.querySelector('#checkbox');
@@ -110,13 +109,10 @@ async function runChallenge(ctx: Ctx) {
         const question = promptText();
         const image = await shot();
         if (!image) { done('failed', 'no_picture'); return; }
-        const task: Record<string, unknown> = { type: 'HCaptchaClassification', image, question,
-          cssWidth: window.innerWidth, cssHeight: window.innerHeight };
-        if (MOTION.test(question)) {
-          const frames: string[] = [];
-          for (let i = 0; i < 7; i++) { await sleep(0.5); const f = await shot(); if (f) frames.push(f); }
-          if (frames.length >= 5) task.frames = frames;
-        }
+        // the frame as shown (its CSS size: the actions come back in it), and its instruction; the server answers
+        // with the in-session solvers (HCaptchaTask) or says to ask for another challenge
+        const task: Record<string, unknown> = { type: 'HCaptchaTask', image, prompt: question,
+          frameWidth: window.innerWidth, frameHeight: window.innerHeight };
         rounds++;
         report('hcaptcha', 'round', { n: rounds });
         const r = await solveTask('hcaptcha', task);

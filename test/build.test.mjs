@@ -21,13 +21,15 @@ test('Chrome store build: version, short name, debugger only optional', () => {
   const b = build([]);
   try {
     assert.equal(b.manifest.version, pkg.version);
-    assert.equal(b.manifest.short_name, 'Browsa Solver');
-    assert.deepEqual(b.manifest.permissions, ['storage']);
+    assert.equal(b.manifest.short_name, '__MSG_short_name__');
+    assert.equal(b.manifest.default_locale, 'en');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(b.dir, '_locales/en/messages.json'), 'utf8')).short_name.message, 'Browsa Solver');
+    assert.deepEqual(b.manifest.permissions, ['storage', 'contextMenus']);
     assert.deepEqual(b.manifest.optional_permissions, ['debugger', 'webNavigation']);
     assert.equal(b.manifest.background.service_worker, 'background.js');
     const js = fs.readFileSync(path.join(b.dir, 'content.js'), 'utf8');
     assert.ok(!/data-browsa-captcha/.test(js.replace(/\/\/.*$/gm, '')) || /IS_AUTOMATION|false/.test(js), 'store build');
-    for (const f of ['background.js', 'content.js', 'popup.js']) {
+    for (const f of ['background.js', 'content.js', 'popup.js', 'options.js']) {
       const s = fs.readFileSync(path.join(b.dir, f), 'utf8');
       assert.ok(!/\beval\(|new Function\(|importScripts\(/.test(s), `${f}: no remote or generated code`);
       assert.ok(!/Chromium/.test(fs.readFileSync(path.join(b.dir, 'popup.html'), 'utf8')), 'no browser engine name in the panel');
@@ -40,8 +42,9 @@ test('Firefox build: event page, gecko id, no debugger anywhere', () => {
   try {
     assert.deepEqual(b.manifest.background, { scripts: ['background.js'] });
     assert.equal(b.manifest.browser_specific_settings.gecko.id, 'captcha-solver@browsa.io');
-    assert.equal(b.manifest.browser_specific_settings.gecko.strict_min_version, '121.0');
+    assert.equal(b.manifest.browser_specific_settings.gecko.strict_min_version, '140.0');
     assert.ok(!JSON.stringify(b.manifest).includes('debugger'));
+    assert.deepEqual(b.manifest.browser_specific_settings.gecko.data_collection_permissions.required, ['authenticationInfo', 'websiteContent', 'browsingActivity']);
     assert.equal(b.manifest.minimum_chrome_version, undefined);
   } finally { b.done(); }
 });

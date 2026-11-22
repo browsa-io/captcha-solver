@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Sign up - Example shop</title></head>
+<body>
+  <h1>Create your account</h1>
+  <p>We used to protect this form with NetEase Yidun (易盾) and Cutcaptcha; read our post about captcha vendors.</p>
+  <!-- class names that look like the widgets, drawn by the page itself, with no script from either vendor -->
+  <form action="/signup" method="post">
+    <label>Email <input type="email" name="email"></label>
+    <div class="yidun yidun--light yidun--jigsaw"><div class="yidun_panel"><div class="yidun_panel-placeholder"><img class="yidun_bg-img" src="/img/bg.jpg" alt=""><img class="yidun_jigsaw" src="/img/piece.png" alt=""></div></div><div class="yidun_control"><div class="yidun_slider">→</div></div></div>
+    <div class="cutcaptcha" data-sitekey="not-a-key"><input type="hidden" name="cutcaptcha-response" value=""></div>
+    <button type="submit">Sign up</button>
+  </form>
+  <script src="/js/yidun-like.js"></script>
+  <script src="https://cdn.example/cstaticdun.126.net/load.min.js"></script>
+</body></html>

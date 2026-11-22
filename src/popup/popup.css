@@ -50,6 +50,7 @@ p { margin: 0; }
 .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line-2); transition: background 160ms; pointer-events: none; }
 .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-2); transition: transform 160ms, background 160ms; }
 .switch input:checked + span { background: var(--green); }
+.switch input:focus-visible + span { outline: 2px solid var(--green); outline-offset: 2px; }
 .switch input:checked + span::after { transform: translateX(14px); background: var(--on-green); }
 
 /* off: the whole panel says so, not only the switch */
@@ -122,3 +123,16 @@ button.ghost.sm { height: 26px; padding: 0 10px; }
 .foot { display: flex; gap: 12px; align-items: center; font-size: 12px; }
 .foot span { margin-left: auto; color: var(--ink-4); }
 .privacy { color: var(--ink-3); font-size: 12px; }
+
+/* 0.2.0 */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+h1.name { margin: 0; font-size: 13px; line-height: 1.4; }
+fieldset.types { border: 0; margin: 0; padding: 0; min-width: 0; }
+.log .cost { color: var(--ink-3); }
+.log .fix { color: var(--ink-3); }
+.log .rep { color: var(--ink-2); }
+.log button.wrong { color: var(--ink-2); font-size: 11.5px; padding: 0 2px; }
+.log button.wrong:hover { color: var(--ink); }
+.log button.wrong:disabled { text-decoration: none; cursor: default; }
+footer.foot { border-top: 1px solid var(--line); padding-top: 8px; }
+.foot button.link { font-size: 12px; color: var(--ink-2); padding: 0; }

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Verify</title>
+<style>body{font:15px system-ui,sans-serif;margin:32px;max-width:640px}input,button{font:inherit;padding:6px 8px;margin:4px 0}</style></head>
+<body>
+<form id="f"><img class="vpic" src="/pic.png" width="140" height="48"><br>
+<input type="text" name="vfield" id="v">
+<button type="submit">Check</button></form><pre id="out"></pre>
+<script>
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('/check', { method: 'POST', body: new FormData(e.target).get('vfield') || '' });
+  document.getElementById('out').textContent = await r.text();
+});
+</script>
+</body></html>

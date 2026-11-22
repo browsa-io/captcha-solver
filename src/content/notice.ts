@@ -7,8 +7,9 @@
 //   <html data-browsa-captcha="solving:<kind> | solved:<kind> | typed:<kind> | failed:<kind>:<reason> | ...">
 // and dispatches a `browsa-captcha` event on document with { state, kind, reason }. The store build never does
 // (it would tell every site the extension is installed).
-import { type Kind, IS_AUTOMATION } from '../lib/config';
+import { type ButtonPos, type Kind, IS_AUTOMATION, KIND_INFO } from '../lib/config';
 import { explain, type Action } from '../lib/reasons';
+import { t } from '../lib/i18n';
 import { bg } from '../lib/msg';
 import { deepAll } from '../lib/dom';
 
@@ -109,7 +110,8 @@ function place(box: HTMLElement, n: Notice) {
 }
 
 function act(action: Action) {
-  const cmd = action === 'allow_text' ? 'allowText' : action === 'deny_text' ? 'denyText' : action === 'enable_site' ? 'enableSite' : 'solveTab';
+  const cmd = action === 'allow_text' ? 'allowText' : action === 'deny_text' ? 'denyText' : action === 'enable_site' ? 'enableSite'
+    : action === 'options' ? 'openOptions' : 'solveTab';
   void bg(cmd);
   close();
 }
@@ -133,10 +135,10 @@ function render(n: Notice) {
   box.className = `n ${e.tone}`;
   box.setAttribute('role', e.tone === 'ask' ? 'dialog' : 'status');
   box.setAttribute('aria-live', 'polite');
-  box.setAttribute('aria-label', 'Browsa Solver');
+  box.setAttribute('aria-label', t('short_name'));
   const from = document.createElement('span');
   from.className = 'from';
-  from.textContent = 'Browsa Solver';
+  from.textContent = t('short_name');
   const dot = document.createElement('span');
   dot.className = 'dot';
   const msg = document.createElement('span');
@@ -162,7 +164,7 @@ function render(n: Notice) {
   const x = document.createElement('button');
   x.type = 'button';
   x.className = 'x';
-  x.setAttribute('aria-label', 'Dismiss');
+  x.setAttribute('aria-label', t('a_dismiss'));
   x.textContent = '×';
   x.addEventListener('click', close);
   box.append(x);
@@ -176,9 +178,100 @@ function render(n: Notice) {
   box.addEventListener('mouseleave', () => { clearTimeout(timer); timer = window.setTimeout(close, 6_000); });
 }
 
+// ---------------------------------------------------------------- the in-page Solve button
+
+export interface Offer { kind: Kind; pos: ButtonPos; box?: [number, number, number, number] | null; frameUrl?: string }
+
+/** A captcha in this frame waits for a click: the top frame shows the Solve button (sub-frames ask through the
+ * background). Repeated while the captcha is there; the button goes when the offers stop. */
+export function offer(o: Offer) {
+  if (isTop) showOffer(o);
+  else void bg('offer', { kind: o.kind, pos: o.pos });
+}
+
+const OFFER_KEEP_MS = 4000;
+let offerHost: HTMLElement | null = null;
+let offerBtn: HTMLButtonElement | null = null;
+let offerTimer = 0;
+let offerQuietUntil = 0;           // after a click: the solve is under way, no button for a while
+
+const OFFER_CSS = `
+:host { all: initial; }
+button { position: fixed; z-index: 2147483646; display: inline-flex; align-items: center; gap: 7px; height: 32px;
+  padding: 0 14px 0 11px; border: 1px solid #2a3630; border-radius: 999px; background: #0f1713; color: #e6efe9; cursor: pointer;
+  font: 600 13px/1 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; letter-spacing: 0;
+  box-shadow: 0 4px 18px rgba(0,0,0,.35); }
+button:hover { border-color: #3ddc84; }
+button:focus-visible { outline: 2px solid #3ddc84; outline-offset: 2px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #3ddc84; flex: none; }
+`;
+
+function hideOffer() {
+  clearTimeout(offerTimer);
+  offerHost?.remove();
+  offerHost = null;
+  offerBtn = null;
+}
+
+function placeOffer(b: HTMLButtonElement, o: Offer) {
+  for (const k of ['left', 'right', 'top', 'bottom']) b.style.removeProperty(k);
+  let a: { left: number; top: number; right: number; bottom: number } | null = null;
+  if (o.pos === 'beside') {
+    if (o.box) a = { left: o.box[0], top: o.box[1], right: o.box[0] + o.box[2], bottom: o.box[1] + o.box[3] };
+    else if (o.frameUrl) {
+      const r = frameRect(o.frameUrl);
+      if (r && r.width > 30 && r.height > 30) a = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }
+  }
+  const vw = window.innerWidth, vh = window.innerHeight, w = b.offsetWidth || 96, h = 32;
+  if (a && a.bottom > 0 && a.top < vh) {
+    // under the captcha's left edge when there is room, else above it: never on top of it
+    const top = a.bottom + 8 + h < vh ? a.bottom + 8 : Math.max(8, a.top - h - 8);
+    b.style.top = top + 'px';
+    b.style.left = Math.max(8, Math.min(vw - w - 8, a.left)) + 'px';
+    return;
+  }
+  const pos = o.pos === 'beside' ? 'bottom-right' : o.pos;
+  b.style[pos.startsWith('top') ? 'top' : 'bottom'] = '16px';
+  b.style[pos.endsWith('left') ? 'left' : 'right'] = '16px';
+}
+
+function showOffer(o: Offer) {
+  if (o.pos === 'off' || Date.now() < offerQuietUntil || !document.documentElement) return;
+  clearTimeout(offerTimer);
+  offerTimer = window.setTimeout(hideOffer, OFFER_KEEP_MS);
+  const label = t('offer_solve', KIND_INFO[o.kind]?.name || t('this_captcha'));
+  if (!offerHost || !offerBtn) {
+    offerHost = document.createElement('browsa-solver-button');
+    const sr = offerHost.attachShadow({ mode: 'closed' });
+    const style = document.createElement('style');
+    style.textContent = OFFER_CSS;
+    offerBtn = document.createElement('button');
+    offerBtn.type = 'button';
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    const txt = document.createElement('span');
+    txt.className = 'txt';
+    offerBtn.append(dot, txt);
+    offerBtn.addEventListener('click', () => {
+      offerQuietUntil = Date.now() + 20_000;
+      hideOffer();
+      void bg('solveTab');
+    });
+    sr.append(style, offerBtn);
+    document.documentElement.append(offerHost);
+  }
+  const txt = offerBtn.querySelector('.txt') as HTMLElement;
+  if (txt.textContent !== t('a_solve')) txt.textContent = t('a_solve');
+  offerBtn.title = label;
+  offerBtn.setAttribute('aria-label', label);
+  placeOffer(offerBtn, o);
+}
+
 /** The top frame's half: notices and signals sent on by the background from frames inside the page. */
 export function listenTop(on: (cmd: string, cb: (m: any) => void) => void) {
   if (!isTop) return;
+  on('offer', (m) => showOffer(m.offer as Offer));
   on('notice', (m) => { const n = m.notice as Notice; const key = `${n.kind || ''}:${n.reason}`; if (n.manual || !shown.has(key)) { shown.add(key); render(n); } });
   on('signal', (m) => writeSignal(String(m.state), String(m.kind), String(m.reason || '')));
 }

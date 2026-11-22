@@ -11,37 +11,54 @@ import type { Ctx } from './main';
 import { canvasData, capture, solveTask } from '../lib/msg';
 import { boxOf, idle, pressEnter, sleep, typeInto, visible } from '../lib/input';
 import { fingerprint } from '../lib/reasons';
+import type { CustomText } from '../lib/config';
 
 const hints = (el: Element, keys: string[]) => keys.map((k) => el.getAttribute(k) || '').join(' ').toLowerCase();
 const isTextInput = (el: Element): el is HTMLInputElement =>
-  el instanceof HTMLInputElement && ['text', ''].includes((el.getAttribute('type') || 'text').toLowerCase());
+  el.tagName === 'INPUT' && ['text', ''].includes((el.getAttribute('type') || 'text').toLowerCase());
 
 function strongImg(el: Element): el is HTMLImageElement {
-  if (!(el instanceof HTMLImageElement)) return false;
+  if (el.tagName !== 'IMG') return false;
   const src = (el.getAttribute('src') || '').toLowerCase();
   return hints(el, ['alt', 'id', 'class', 'src', 'title', 'name']).includes('captcha') && !src.endsWith('.svg');
 }
 
 function inlineImg(el: Element): el is HTMLImageElement {
   const src = (el.getAttribute('src') || '').toLowerCase();
-  return el instanceof HTMLImageElement && (src.startsWith('data:image') || src.startsWith('blob:')) && !src.startsWith('data:image/svg');
+  return el.tagName === 'IMG' && (src.startsWith('data:image') || src.startsWith('blob:')) && !src.startsWith('data:image/svg');
 }
 
 function answerLike(el: Element): boolean {
   return isTextInput(el) && /captcha|answer|code|characters|text/.test(hints(el, ['placeholder', 'name', 'id', 'aria-label']));
 }
 
+/** The picture and field the person marked on this site (right-click), when both are on the page now. */
+export function customParts(custom: CustomText | undefined, doc: Document = document): [HTMLImageElement, HTMLInputElement] | null {
+  if (!custom) return null;
+  try {
+    const img = doc.querySelector(custom.img), input = doc.querySelector(custom.input);
+    const field = input && (input.tagName === 'INPUT' || input.tagName === 'TEXTAREA');
+    return img && img.tagName === 'IMG' && field ? [img as HTMLImageElement, input as HTMLInputElement] : null;
+  } catch {
+    return null;                                       // a selector that no longer parses
+  }
+}
+
 /** textcap.captcha_parts: (picture, answer field) or null. */
-export function captchaParts(doc: Document = document): [HTMLImageElement, HTMLInputElement] | null {
-  const inputs = Array.from(doc.querySelectorAll('input')).filter(isTextInput);
+export function captchaParts(doc: Document = document, custom?: CustomText): [HTMLImageElement, HTMLInputElement] | null {
+  const marked = customParts(custom, doc);
+  if (marked) return marked;
+  // a provider widget with its own solver is not a picture-text captcha (CyberSiARA's letters, MTCaptcha)
+  const own = (el: Element) => !el.closest('.SiaraShield, #myModal.tooltiptextCyber, .mtcap-main');
+  const inputs = Array.from(doc.querySelectorAll('input')).filter((i) => isTextInput(i) && own(i));
   const capInputs = inputs.filter((i) => hints(i, ['placeholder', 'name', 'id', 'aria-label', 'class']).includes('captcha'));
-  const img = Array.from(doc.querySelectorAll('img')).find(strongImg);
+  const img = Array.from(doc.querySelectorAll('img')).find((i) => strongImg(i) && own(i));
   if (img) {
     const inp = capInputs[0] || inputs.find(answerLike);
     return inp ? [img, inp] : null;
   }
   if (capInputs.length) {
-    const im = Array.from(doc.querySelectorAll('img')).find(inlineImg);
+    const im = Array.from(doc.querySelectorAll('img')).find((i) => inlineImg(i) && own(i));
     if (im) return [im, capInputs[0]];
   }
   return null;
@@ -83,9 +100,17 @@ export async function runText(ctx: Ctx) {
     if (b && (!typedInto.form || (b as HTMLButtonElement).form === typedInto.form || typedInto.form.contains(b))) submitted();
   }, true);
 
+  // the detector's own find must look like a captcha (size); a picture the person marked only has to be on screen
+  const find = (): [HTMLImageElement, HTMLInputElement] | null => {
+    const custom = ctx.cfg.custom[ctx.host];
+    const marked = customParts(custom);
+    if (marked) return visible(marked[0]) ? marked : null;
+    const p = captchaParts();
+    return p && plausible(p[0]) ? p : null;
+  };
   const go = async (why: 'auto' | 'button') => {
-    const parts = captchaParts();
-    if (busy || !parts || !plausible(parts[0])) return;
+    const parts = find();
+    if (busy || !parts) return;
     const [img, input] = parts;
     busy = true;
     seen.add(img.src);
@@ -124,12 +149,12 @@ export async function runText(ctx: Ctx) {
       busy = false;
     }
   };
-  ctx.onManual('text', () => { const p = captchaParts(); return !!p && plausible(p[0]); }, () => go('button'));
+  ctx.onManual('text', () => !!find(), () => go('button'), () => { const p = find(); return p ? boxOf(p[0]) : null; });
   for (;;) {
     await sleep(1.0);
     if (busy || !ctx.cfg.auto || ctx.skipAuto('text')) continue;
-    const parts = captchaParts();
+    const parts = find();
     // a new picture (first load, or a refresh after a wrong answer) whose field the person has not filled
-    if (parts && plausible(parts[0]) && !seen.has(parts[0].src) && !parts[1].value) await go('auto');
+    if (parts && !seen.has(parts[0].src) && !parts[1].value) await go('auto');
   }
 }

@@ -6,6 +6,8 @@ import type { Ctx } from './main';
 import { report, solveTask } from '../lib/msg';
 import { boxOf, click, idle, sleep, slide, visible } from '../lib/input';
 import { providerScripts } from '../lib/origin';
+import type { Kind } from '../lib/config';
+import { GT4_KINDS, panelKind, solveGt4, type Gt4Kind } from './geetest4';
 
 const BUDGET_S = 75;
 const TRIES = 4;
@@ -145,7 +147,7 @@ const urlOf = (el: Element) => {
   return m ? m[1] : '';
 };
 
-async function solveV4(ctx: Ctx): Promise<{ solved: boolean; reason: string; rounds: number }> {
+async function solveV4(ctx: Ctx): Promise<{ solved: boolean; reason: string; rounds: number; handoff?: Gt4Kind }> {
   const t0 = performance.now();
   const elapsed = () => (performance.now() - t0) / 1000;
   let rounds = 0;
@@ -173,7 +175,12 @@ async function solveV4(ctx: Ctx): Promise<{ solved: boolean; reason: string; rou
     const knob = qv('.geetest_btn');
     if (!bg || !sl || !slBox || !knob) {
       const other = Array.from(document.querySelectorAll('.geetest_subitem')).find((n) => visible(n) && !n.classList.contains('geetest_slide'));
-      if (other) return { solved: false, reason: 'other_puzzle', rounds };
+      if (other) {
+        // another v4 puzzle: its own type (geetest4.ts) takes the solve over, under its own switch
+        const pk = panelKind();
+        if (pk && pk !== 'other' && pk !== 'geetest') return { solved: false, reason: 'handoff', rounds, handoff: pk as Gt4Kind };
+        return { solved: false, reason: 'other_puzzle', rounds };
+      }
       continue;
     }
     const key = urlOf(bg);
@@ -212,6 +219,15 @@ async function solveV4(ctx: Ctx): Promise<{ solved: boolean; reason: string; rou
 
 const widget = () => qv('.geetest_btn_click') || qv('.geetest_radar_tip') || qv('.geetest_radar_btn') || qv('.geetest_holder');
 
+/** The type of the GeeTest widget on the page: v4 puts its puzzle panel in the page (hidden) before the button is
+ * clicked, so the kind, and with it the switch that applies, is known before anything is done. */
+const kindNow = (): Kind => {
+  if (!qv('.geetest_btn_click')) return 'geetest';
+  const pk = panelKind();
+  return pk && pk !== 'other' ? (pk as Kind) : 'geetest';
+};
+const widgetShown = () => !!(qv('.geetest_btn_click') || qv('.geetest_radar_tip') || qv('.geetest_radar_btn'));
+
 export async function runGeetest(ctx: Ctx) {
   let busy = false;
   let doneFor = '';                         // one automatic attempt per widget; the Solve button retries
@@ -225,22 +241,34 @@ export async function runGeetest(ctx: Ctx) {
     const t0 = performance.now();
     const w = widget();
     const anchor = w ? boxOf(w) : null;
+    let kind: Kind = v4 ? kindNow() : 'geetest';
     try {
       // GeeTest's own script (from GeeTest's hosts), not a look-alike drawn by the page
-      const may = await ctx.start('geetest', why, { verified: providerScripts('geetest'), anchor });
+      const verified = providerScripts('geetest');
+      const may = await ctx.start(kind, why, { verified, anchor });
       if (!may.ok) return;
-      const r = v4 ? await solveV4(ctx) : await solveV3(ctx);
-      ctx.end('geetest', r.solved ? 'solved' : 'failed', { reason: r.reason, rounds: r.rounds,
+      let r: { solved: boolean; reason: string; rounds: number; handoff?: Kind } = kind === 'geetest'
+        ? (v4 ? await solveV4(ctx) : await solveV3(ctx)) : await solveGt4(ctx, kind as Gt4Kind, false);
+      // the panel holds another v4 puzzle than it showed first: that type takes the solve over, under its own
+      // switch, and the first one ends without a line of its own (it called nothing)
+      for (let hops = 0; r.handoff && hops < 2; hops++) {
+        report(kind, 'handoff');
+        kind = r.handoff;
+        const next = await ctx.start(kind, why, { verified, anchor });
+        if (!next.ok) return;
+        r = await solveGt4(ctx, kind as Gt4Kind, true);
+      }
+      ctx.end(kind, r.solved ? 'solved' : 'failed', { reason: r.handoff ? 'other_puzzle' : r.reason, rounds: r.rounds,
         seconds: (performance.now() - t0) / 1000, anchor });
     } finally {
       busy = false;
       doneFor = location.href;
     }
   };
-  ctx.onManual('geetest', () => !!(qv('.geetest_btn_click') || qv('.geetest_radar_tip') || qv('.geetest_radar_btn')), () => go('button'));
+  for (const k of ['geetest', ...GT4_KINDS] as Kind[]) ctx.onManual(k, () => widgetShown() && kindNow() === k, () => go('button'));
   for (;;) {
     await sleep(0.8);
-    if (busy || doneFor === location.href || !ctx.cfg.auto || ctx.skipAuto('geetest')) continue;
-    if (qv('.geetest_btn_click') || qv('.geetest_radar_tip') || qv('.geetest_radar_btn')) await go('auto');
+    if (busy || doneFor === location.href || !ctx.cfg.auto || !widgetShown() || ctx.skipAuto(kindNow())) continue;
+    await go('auto');
   }
 }

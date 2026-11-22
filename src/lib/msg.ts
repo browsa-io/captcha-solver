@@ -31,7 +31,7 @@ export async function begin(kind: Kind, why: Why, opts: { verified?: boolean; si
 }
 
 /** The solve log (popup): rounds, and the end with the widget's own verdict and, for anything but a pass, why. */
-export function report(kind: Kind, event: 'start' | 'round' | 'end', data: Record<string, unknown> = {}) {
+export function report(kind: Kind, event: 'start' | 'round' | 'end' | 'handoff', data: Record<string, unknown> = {}) {
   void bg('report', { kind, event, data });
 }
 

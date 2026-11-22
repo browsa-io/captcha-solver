@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Heavy page</title>
+<style>body{font:15px system-ui,sans-serif;margin:32px;max-width:640px}input,button{font:inherit;padding:6px 8px;margin:4px 0}</style></head>
+<body>
+<h1>Heavy page</h1><div id="grid"></div>
+<script>
+// about 12,000 elements, 400 pictures, 60 forms, and the DOM keeps changing: an ordinary busy page
+const g=document.getElementById("grid");let h="";for(let i=0;i<400;i++){h+=`<section class="card c${i%7}"><h3>Item ${i}</h3><img src="/logo.png?${i%20}" alt="Item ${i}" width="60" height="40"><p>Text <b>bold</b> <a href="#${i}">link</a> <span>${i}</span></p><ul>${"<li><span>row</span> <i>x</i></li>".repeat(6)}</ul>${i%7===0?`<form><input type="text" name="q${i}"><input type="text" name="zip${i}"><button>Go</button></form>`:""}</section>`}g.innerHTML=h;
+let n=0;setInterval(()=>{const s=g.children[n++%400];s.querySelector("span").textContent=String(n);if(n%10===0){const d=document.createElement("div");d.textContent="new "+n;s.append(d);if(s.children.length>12)s.lastChild.remove()}},50);
+</script>
+</body></html>
