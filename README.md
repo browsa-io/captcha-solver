@@ -41,50 +41,62 @@ captcha**, then right-click its field, **the answer goes in this field**. It is 
 
 ## What it solves today
 
-| Type | Chrome: accepted | median | credits per solve | Firefox: accepted | median | credits per solve | On by default in |
-|---|---|---|---|---|---|---|---|
-| reCAPTCHA v2 (checkbox) | 31 of 33 | 14.5 s | 0.0071 | 11 of 13 | 56.6 s | about 0.1 (see below) | Chrome only |
-| GeeTest v3 slide | 15 of 15 | 12 s | 0.0091 | 15 of 15 | 12.2 s | 0.0096 | Chrome and Firefox |
-| GeeTest v4 slide | 15 of 15 | 16.5 s | 0.0133 | 15 of 15 | 16.6 s | 0.0133 | Chrome and Firefox |
-| Image text (22 Nov) | 14 of 15 | 9.4 s | 0.01 | 15 of 15 | 9.4 s | 0.01 | Chrome and Firefox |
-| AWS WAF captcha | 26 of 26 | 16 s | 0.0115 | no puzzle shown in 15 visits | - | - | Chrome only |
-| ALTCHA | 30 of 30 | 4.3 s | free | 15 of 15 | 4.6 s | free | Chrome and Firefox |
+A type is on only after at least 15 attempts through the extension with at least 9 in 10 answers accepted by the
+provider's or the site's own server (Chrome; Firefox gets a 5-attempt check per type on top). Below that bar a type
+ships switched off (Options, "Not ready yet") with its number here.
 
-Measured on 2026-11-21 (image text on 2026-11-22, after the service changed how it reads it) with the 0.2.0 store packages against the live service: 15 attempts per type and browser, a
-fresh profile per attempt, a new challenge on every page load, on a home connection. Chrome is Chrome for Testing in a
-window; Firefox is Firefox 160 headless under geckodriver, which reports `navigator.webdriver` as true (a person's
-Firefox does not: a harder case). Median: seconds from page load to the widget's pass, accepted attempts. Credits:
-what the service charged per accepted solve.
+### New in 0.3.0 (measured 22 Nov 2026, store package, live service)
 
-**Confirmation pass on the final build** (22 Nov, Chrome, 5 attempts each, spaced out): reCAPTCHA v2 5 of 5, GeeTest v3 5 of 5, GeeTest v4 5 of 5, AWS WAF 5 of 5, ALTCHA 5 of 5. No miss.
+| Type | Chrome: accepted | median | credits per answer | Firefox (5 attempts) | On in |
+|---|---|---|---|---|---|
+| GeeTest v4 IconCrush | 16 of 16 | 14.6 s | 0.008 | not shown in a driven Firefox | Chrome |
+| GeeTest v4 gobang | 16 of 16 | 15.2 s | 0.008 | not shown in a driven Firefox | Chrome |
+| GeeTest v4 nine photos | 16 of 16 | 18.6 s | 0.01 | - | Chrome |
+| GeeTest v4 matching shape | 16 of 16 | 17.1 s | 0.01 | - | Chrome |
+| Tencent slide | 16 of 16 | 24.2 s | 0.008 | the widget does not open in a driven Firefox | Chrome |
+| Tencent click in order | 16 of 16 | 33.9 s | 0.012 | the widget does not open in a driven Firefox | Chrome |
+| NetEase Yidun slide | 15 of 15 | 12.4 s | 0.008 | 5 of 5 | Chrome and Firefox |
+| NetEase Yidun swap two tiles | 14 of 15 | 20 s | 0.011 | 5 of 5 | Chrome and Firefox |
+| NetEase Yidun icons in order | 15 of 15 | 20 s | 0.015 | 5 of 5 | Chrome and Firefox |
+| Dingxiang rotate | 15 of 16 | 30.9 s | 0.008 | 5 of 5 | Chrome and Firefox |
+| MTCaptcha | 15 of 15 | 12.5 s | 0.011 | 5 of 5 | Chrome and Firefox |
+| Cutcaptcha jigsaw | 14 of 15 | - | 0.008 | not available (needs Trusted input) | Chrome, with Trusted input |
 
-**A pass counts only when the site's own server accepts the answer**: Google's reCAPTCHA demo page saying
-"Verification Success", a public GeeTest demo page whose server validates the result, a public image-text demo page answering "Correct!", for AWS WAF the WAF token being set and the page behind the captcha loading, and for ALTCHA
-Browsa's own ALTCHA deployment checking the proof on its server. Ticking a box or dragging a slider is not counted.
+Each was also checked in a windowed Chrome (4 to 6 attempts each, all passed after one GeeTest gobang fix). A final
+pass on the finished build, one attempt per listed type, was 16 of 17 (the miss: reCAPTCHA v2, where Google gave this
+connection long picture rounds).
 
-Read these numbers for what they are:
+### From 0.2.0 (measured 21 and 22 Nov 2026)
 
-- A home connection with a fresh profile is a friendly case for reCAPTCHA. From a data-centre address, or in a
-  browser Google distrusts, it asks for more picture rounds.
-- ALTCHA: the extension only ticks the box; the widget does its own proof of work. Free, and nothing is sent.
-- The list is per browser. In Firefox, reCAPTCHA and AWS WAF are off for a new install (see "Not solved" below);
-  GeeTest and ALTCHA are on.
+| Type | Chrome: accepted | median | Firefox: accepted | median | On in |
+|---|---|---|---|---|---|
+| reCAPTCHA v2 (checkbox) | 31 of 33 | 14.5 s | 11 of 13 (driven Firefox) | 56.6 s | Chrome |
+| GeeTest v3 slide | 15 of 15 | 12 s | 15 of 15 | 12.2 s | Chrome and Firefox |
+| GeeTest v4 slide | 15 of 15 | 16.5 s | 15 of 15 | 16.6 s | Chrome and Firefox |
+| Image text | 14 of 15 | 9.4 s | 15 of 15 | 9.4 s | Chrome and Firefox |
+| AWS WAF captcha | 26 of 26 | 16 s | no puzzle shown in 15 visits | - | Chrome |
+| ALTCHA | 30 of 30 | 4.3 s | 15 of 15 | 4.6 s | Chrome and Firefox (free) |
 
-### Not solved
+**A pass counts only when the provider's or the site's own server accepts the answer** (for example Google's demo
+saying "Verification Success", a demo page whose server validates the GeeTest or Yidun result, ALTCHA's proof checked
+on the server). Ticking a box or dragging a slider is not counted. Measured on a home connection with a fresh profile
+per attempt, which is a friendly case; your results depend on your connection and on each site's settings.
 
-- **Image text** (listed): on 21 Nov it was below the bar (82 of 98 through the extension, both browsers; every answer was typed exactly as the service gave it, so the misses were the service's readings). The service reads it with a stronger model since 21 Nov 18:34 UTC, at 0.01 credits a solve since 22 Nov. Measured again through the final extension build on 22 Nov, 15 attempts per browser on the same demo: Chrome 14 of 15, Firefox 15 of 15, median 9.4 s in both, 0.01 credits a solve. Listed again in both browsers. As before, a site is asked once before its picture captchas are solved by themselves.
-- **reCAPTCHA in Firefox**: under the bar where it could be measured, so it is off for a new install of the Firefox add-on and not on its list (in Chrome it is listed). 11 of 13 accepted, median 56.6 s from page load, about 10 answers (about 0.1 credits) a solve. The Firefox in the measurement is driven by geckodriver and says so to every site (`navigator.webdriver` is true), and Google answered with more and longer picture rounds (two attempts ran out of time). A person's own Firefox does not say that and should be treated like Chrome was, but that could not be measured here: an unsigned add-on can only be loaded into a driven Firefox. The run was stopped at 13 attempts: two misses already put 15 under the bar, and the solves had used up the workspace's hourly limit of the API. One switch in Options turns it on.
-- **Cloudflare Turnstile**: nothing to credit. On Browsa's own widget (a real key, managed mode; the page's server asks Cloudflare's siteverify), in a Chrome that nothing is attached to, 14 of 15 visits passed by themselves and the extension did not act in any of them. In a browser driven over the debugging protocol Cloudflare shows the checkbox and does not take the click (0 of 2 in Chrome). Off and unlisted.
-- **Cloudflare's check page**: the same click; not measured again (0 of 3 on 21 Nov with 0.1.1). Off and unlisted.
-- **hCaptcha**: the captcha API has no hCaptcha task today (its public type list), so there is nothing to measure. Off and unlisted.
-- **DataDome slider**: the API's slider task is switched off. Off and unlisted.
-- **Press & hold**: no public page with a server verdict and no API task; Chrome only (it needs Trusted input), not available in Firefox. Off and unlisted.
-- **Other GeeTest v4 puzzles** (icons, match, and so on): the API offers the slide task only; another puzzle is reported as "This puzzle type isn't supported yet".
-- **reCAPTCHA v3**: nothing to solve in the page (a score only), so no minimum-score setting: the service's `minScore` belongs to its token task, which the extension does not use.
-- **AWS WAF in Firefox**: no Firefox number. The page used for measuring let Firefox through without a puzzle in 15 of 16 visits (the one puzzle it showed fell in the minutes when the key was at its hourly limit). Off for a new install in Firefox (one switch in Options); the code is the same as in Chrome.
+### Off in 0.3.0, with their numbers
 
-These ship switched off (Options, "Not ready yet") and unlisted. A type joins a browser's list only after at least 15
-attempts through the extension in that browser with at least 9 in 10 accepted by the site's server.
+- **hCaptcha**: 14 of 15 in a headless Chrome through the live service, but worse in a normal window (4 of 5 in one
+  setup, 0 of 3 in another): hCaptcha shows a window mostly scene puzzles that the service does not answer. Off until
+  it passes in a normal window.
+- **reCAPTCHA audio challenge** (a fallback after picture rounds): 12 of 12 answers accepted, but Google showed a
+  challenge in only 12 of 27 visits, so 15 attempts were not reached. Off.
+- **GeeTest v4 icons**: 14 of 16, under 9 in 10. Off.
+- **CyberSiARA**: 14 of 14 accepted, but the letters appeared in only 14 of 30 visits. Off.
+- **Press & hold**: the check did not appear in 6 visits. Off.
+- **Cloudflare Turnstile and Cloudflare's check page**: in a person's own Chrome they pass by themselves (14 of 15
+  visits), so there is nothing for the extension to do. Off.
+- **reCAPTCHA v3**: a score only, nothing to solve on the page.
+- **Firefox**: reCAPTCHA, AWS WAF, the other GeeTest v4 puzzles and Tencent are off for a new install (see the tables);
+  Trusted input does not exist in Firefox, so Cutcaptcha and Press & hold are Chrome only.
 
 ## How it works
 
